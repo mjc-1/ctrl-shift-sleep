@@ -16,9 +16,9 @@
 .sub-text { font-size: 0.7rem; color: var(--text); font-weight: bold; text-align: center; }
 .sub-label-dim { font-size: 0.65rem; color: #64748b; text-align: left; white-space: nowrap; }
 .metric-bold { font-size: 0.75rem; font-weight: bold; text-align: right; font-variant-numeric: tabular-nums; }
-.data-subrow { display: grid; grid-template-columns: 26px 10px 22px 10px; align-items: center; gap: 2px; padding: 2px 0; }
+.data-subrow { display: grid; grid-template-columns: 26px 10px 22px 10px; align-items: center; gap: 2px; padding: 2px 0; margin: 0 auto; }
 .sr-val { font-size: 0.7rem; font-weight: bold; text-align: right; font-variant-numeric: tabular-nums; }
-.target-subrow { display: grid; grid-template-columns: 50px 14px 50px 14px; align-items: center; justify-items: center; padding: 2px 0; gap: 0; }
+.target-subrow { display: grid; grid-template-columns: 50px 14px 50px 14px; align-items: center; justify-items: center; padding: 2px 0; gap: 0; margin: 0 auto; }
 .target-subrow .custom-stepper { width: 100%; }
 
 /* Transposed analytics table */

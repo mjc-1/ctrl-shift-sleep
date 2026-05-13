@@ -4,6 +4,7 @@ const Wizard = {
     _pickerCb: null,
     _lastStep: null,
     _swipeAttached: false,
+    _direction: null,
 
     _defaultData() {
         return {
@@ -46,7 +47,7 @@ const Wizard = {
                     <label class="wiz-label">Your name</label>
                     <input class="wiz-input" id="wiz-name" type="text"
                            value="${data.name}" placeholder="e.g. Alex"
-                           autocomplete="given-name"
+                           autocomplete="off" autocorrect="off" autocapitalize="off"
                            onkeydown="if(event.key==='Enter'){event.preventDefault();Wizard._next();}">
                 `;
             },
@@ -431,6 +432,20 @@ const Wizard = {
                 </div>
             </div>
         `;
+
+        // Apply directional slide-in animation
+        if (this._direction) {
+            const content = document.getElementById('wiz-content');
+            if (content) content.classList.add(this._direction === 'back' ? 'wiz-slide-in-left' : 'wiz-slide-in-right');
+            this._direction = null;
+        }
+
+        // Update desktop edge buttons
+        const backBtn = document.getElementById('wiz-btn-back');
+        const nextBtn = document.getElementById('wiz-btn-next');
+        if (backBtn) { backBtn.style.opacity = isFirst ? '0.25' : '1'; backBtn.style.pointerEvents = isFirst ? 'none' : ''; }
+        if (nextBtn) { nextBtn.style.opacity = '1'; nextBtn.style.pointerEvents = ''; }
+
         requestAnimationFrame(() => this._drawPreview());
 
         setTimeout(() => {
@@ -469,6 +484,7 @@ const Wizard = {
         step.save(val, this._data);
         let next = this._step + 1;
         while (next < this._steps.length && this._steps[next].skip?.(this._data)) next++;
+        this._direction = 'next';
         if (next < this._steps.length) {
             this._transition(() => { this._step = next; this._renderContent(false); });
         } else {
@@ -481,6 +497,7 @@ const Wizard = {
         if (this._step === 0) return;
         let prev = this._step - 1;
         while (prev > 0 && this._steps[prev].skip?.(this._data)) prev--;
+        this._direction = 'back';
         this._transition(() => { this._step = prev; this._renderContent(false); });
     },
 
@@ -488,6 +505,7 @@ const Wizard = {
         this._closePicker();
         let next = this._step + 1;
         while (next < this._steps.length && this._steps[next].skip?.(this._data)) next++;
+        this._direction = 'next';
         if (next < this._steps.length) {
             this._transition(() => { this._step = next; this._renderContent(false); });
         } else {
@@ -499,7 +517,8 @@ const Wizard = {
         this._closePicker();
         const content = document.getElementById('wiz-content');
         if (content) {
-            content.style.animation = 'wiz-fade-out 0.18s ease forwards';
+            const outAnim = this._direction === 'back' ? 'wiz-slide-out-right' : 'wiz-slide-out-left';
+            content.style.animation = `${outAnim} 0.18s ease forwards`;
             setTimeout(callback, 180);
         } else {
             callback();
@@ -516,6 +535,7 @@ const Wizard = {
 
         const el = document.getElementById('wiz-picker');
         el.style.transform = '';
+        el.style.width = '';
         el.innerHTML = `<div class="wiz-pick-wrap">${items.map(o => {
             const active = String(o.val) === String(currentVal);
             const v = typeof o.val === 'string' ? `'${o.val}'` : o.val;
@@ -559,6 +579,11 @@ const Wizard = {
                 }).join('')
             }</div>`).join('')
         }</div>`;
+
+        // Set explicit width so overflow:auto doesn't clip rows
+        const BTN_W = 30, GAP = 3, BORDER_PAD = 16;
+        const gridW = cols * BTN_W + (cols - 1) * GAP + BORDER_PAD;
+        el.style.width = Math.min(gridW, window.innerWidth - 32) + 'px';
 
         el.style.display   = 'block';
         el.style.top       = '50%';

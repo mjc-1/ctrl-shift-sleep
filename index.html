@@ -36,9 +36,11 @@
 
 <div id="main-content">
     <div class="name-bar">
-        <input type="text" id="plan-name" class="plan-name-input" placeholder="Untitled plan…">
+        <input type="text" id="plan-name" class="plan-name-input" placeholder="Untitled plan…"
+               readonly autocomplete="off" inputmode="none" style="cursor:pointer;" onclick="UI.openNameModal()">
     </div>
     <div class="tab-bar">
+        <button id="tab-setup-btn" onclick="Wizard.showFromLast()" title="Return to setup">&#8592;</button>
         <button class="tab-btn" data-tab="activities" onclick="UI.switchTab('activities')">Activities</button>
         <button class="tab-btn active" data-tab="analytics" onclick="UI.switchTab('analytics')">Analytics</button>
         <button class="tab-btn" data-tab="graph" onclick="UI.switchTab('graph')">Graph</button>
@@ -116,7 +118,23 @@
 </div>
 
 <div id="wizard-overlay" onclick="Wizard._closePicker(); event.stopPropagation();">
+    <button id="wiz-btn-back" class="wiz-edge-btn" onclick="event.stopPropagation(); Wizard._back()">&#8592;</button>
     <div id="wizard-card"></div>
+    <button id="wiz-btn-next" class="wiz-edge-btn" onclick="event.stopPropagation(); Wizard._next()">&#8594;</button>
+</div>
+
+<div id="name-modal" onclick="document.getElementById('name-modal').style.display='none'">
+    <div id="name-modal-box" onclick="event.stopPropagation()">
+        <div class="name-modal-label">Plan name</div>
+        <input id="name-modal-input" type="text" class="name-modal-input"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               placeholder="Untitled plan…"
+               onkeydown="if(event.key==='Enter'){UI.confirmNameModal();}else if(event.key==='Escape'){document.getElementById('name-modal').style.display='none';}">
+        <div class="name-modal-btns">
+            <button onclick="document.getElementById('name-modal').style.display='none'">Cancel</button>
+            <button class="name-modal-done" onclick="UI.confirmNameModal()">Done</button>
+        </div>
+    </div>
 </div>
 
 <div id="wiz-picker" onclick="event.stopPropagation()"></div>

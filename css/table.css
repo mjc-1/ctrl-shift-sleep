@@ -1,6 +1,8 @@
 table { width: 100%; border-collapse: collapse; }
 .act-table { border-collapse: collapse; table-layout: auto; }
-.act-table th { font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; text-align: right; padding: 4px 8px 4px 4px; white-space: nowrap; border-right: 1px solid var(--border); }
+.act-table th { font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; text-align: right; padding: 4px 8px 4px 4px; white-space: nowrap; border-right: 1px solid var(--border); vertical-align: middle; }
 .th-inner { border-bottom: 1px solid var(--border); padding-bottom: 8px; width: 100%; display: block; }
-.act-table td { padding: 4px 5px; text-align: center; vertical-align: middle; min-width: 80px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.act-table td { padding: 4px 5px; text-align: center; vertical-align: middle; min-width: 80px; border-bottom: 1px solid rgba(255,255,255,0.03); overflow: hidden; }
+.act-table td > div, .act-table td > span { display: block; width: 100%; }
+.act-table td .stepper-wrap { display: flex; justify-content: center; align-items: center; }
 input, select { background: #0f172a; color: white; border: 1px solid var(--border); border-radius: 4px; padding: 4px; font-size: 0.7rem; width: 100%; box-sizing: border-box; text-align: center; }
