@@ -68,7 +68,7 @@ const Wizard = {
                         <div class="wiz-presets" style="flex-direction:column;">
                             <button class="wiz-preset" onclick="Wizard._pickShiftDaysType('weekly')">The same every week</button>
                             <button class="wiz-preset" onclick="Wizard._pickShiftDaysType('cycle')">On a regular cycle</button>
-                            <button class="wiz-preset" onclick="Wizard._pickShiftDaysType('variable')">Variable</button>
+                            <button class="wiz-preset" onclick="Wizard._pickShiftDaysType('variable')">It varies</button>
                         </div>
                     `;
                 }
@@ -93,7 +93,7 @@ const Wizard = {
                         <div class="wiz-presets" style="flex-direction:column;">
                             <button class="wiz-preset" onclick="Wizard._pickShiftHoursType('same')">The same every shift</button>
                             <button class="wiz-preset" onclick="Wizard._pickShiftHoursType('cycle')">On a regular cycle</button>
-                            <button class="wiz-preset" onclick="Wizard._pickShiftHoursType('variable')">Variable</button>
+                            <button class="wiz-preset" onclick="Wizard._pickShiftHoursType('variable')">It varies</button>
                         </div>
                     `;
                 }
@@ -157,7 +157,7 @@ const Wizard = {
                         <div class="wiz-presets" style="flex-direction:column;">
                             <button class="wiz-preset" onclick="Wizard._pickBedtimeType('fixed')">At the same time every day</button>
                             <button class="wiz-preset" onclick="Wizard._pickBedtimeType('after-shift')">The same length of time after every shift</button>
-                            <button class="wiz-preset" onclick="Wizard._pickBedtimeType('variable')">Variably</button>
+                            <button class="wiz-preset" onclick="Wizard._pickBedtimeType('variable')">It varies</button>
                         </div>
                     `;
                 }
@@ -176,7 +176,7 @@ const Wizard = {
                     return `
                         <div class="wiz-presets" style="flex-direction:column;">
                             <button class="wiz-preset" onclick="Wizard._pickOnsetType('fixed')">About the same length of time every time</button>
-                            <button class="wiz-preset" onclick="Wizard._pickOnsetType('variable')">Variably</button>
+                            <button class="wiz-preset" onclick="Wizard._pickOnsetType('variable')">It varies</button>
                         </div>
                     `;
                 }
@@ -196,7 +196,7 @@ const Wizard = {
                         <div class="wiz-presets" style="flex-direction:column;">
                             <button class="wiz-preset" onclick="Wizard._pickWakeType('fixed')">At the same time every day</button>
                             <button class="wiz-preset" onclick="Wizard._pickWakeType('after-duration')">After the same number of hours sleep every time</button>
-                            <button class="wiz-preset" onclick="Wizard._pickWakeType('variable')">Variably</button>
+                            <button class="wiz-preset" onclick="Wizard._pickWakeType('variable')">It varies</button>
                         </div>
                     `;
                 }
@@ -208,7 +208,7 @@ const Wizard = {
 
         // 7 — Sleep needs
         {
-            title: 'How much sleep do you need?',
+            title: 'How much sleep do you need per day/night?',
             subtitle: 'This sets your sleep targets in the analytics.',
             render(data) {
                 const cols = [
@@ -345,14 +345,29 @@ const Wizard = {
     },
 
     show() {
-        this._step = 0;
-        this._data = this._defaultData();
+        const savedStep = localStorage.getItem('sleepapp_wizard_step');
+        const savedData = localStorage.getItem('sleepapp_wizard_data');
+        const restoring = savedStep !== null && savedData !== null;
+        if (restoring) {
+            try {
+                this._step = parseInt(savedStep, 10) || 0;
+                this._data = { ...this._defaultData(), ...JSON.parse(savedData) };
+            } catch (e) {
+                this._step = 0;
+                this._data = this._defaultData();
+            }
+        } else {
+            this._step = 0;
+            this._data = this._defaultData();
+        }
+        const card = document.getElementById('wizard-card');
+        if (card) card.innerHTML = '';
         const overlay = document.getElementById('wizard-overlay');
         overlay.style.display = 'flex';
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 overlay.classList.add('wiz-visible');
-                this._renderContent(true);
+                this._renderContent(!restoring);
             });
         });
         if (!this._swipeAttached) {
@@ -411,32 +426,49 @@ const Wizard = {
         const base   = initial ? 320 : 0;
         const d      = extra => `animation-delay:${base + extra}ms`;
         const hasSub = !!step.subtitle;
-
         const showPreview = this._step >= 1;
-        document.getElementById('wizard-card').innerHTML = `
-            <div class="wiz-logo-wrap" style="${d(0)}">
-                <img src="icons/logo.png" class="wiz-logo" alt="" loading="eager" onerror="this.closest('.wiz-logo-wrap').style.display='none'">
-            </div>
-            <div id="wiz-content">
-                <div class="wiz-dots"  style="${d(0)}">${dots}</div>
-                <h2 class="wiz-title"  style="${d(120)}">${step.title}</h2>
-                ${hasSub ? `<p class="wiz-subtitle" style="${d(220)}">${step.subtitle}</p>` : ''}
-                <div class="wiz-body"  style="${d(hasSub ? 380 : 260)}">${step.render(this._data)}</div>
-                ${showPreview ? `<div class="wiz-preview" style="${d(hasSub ? 460 : 340)}"><canvas id="wiz-preview-canvas" class="wiz-preview-canvas"></canvas></div>` : ''}
-                <div class="wiz-nav"   style="${d(hasSub ? 560 : 440)}">
-                    ${isLast ? `<button class="wiz-btn-pri" onclick="Wizard._next()">Get started &#8594;</button>` : ''}
-                    <div style="display:flex; gap:14px;">
-                        ${!isLast ? `<button class="wiz-btn-skip" onclick="Wizard._skipStep()">Skip this step</button>` : ''}
-                        <button class="wiz-btn-skip" onclick="Wizard._skip()">Skip all</button>
-                    </div>
+
+        // Build permanent card structure once
+        const card = document.getElementById('wizard-card');
+        if (!document.getElementById('wiz-logo-area')) {
+            const logoStyle = base > 0 ? `style="animation-delay:${base}ms"` : '';
+            card.innerHTML = `
+                <div id="wiz-logo-area" class="wiz-logo-wrap" ${logoStyle}>
+                    <img src="icons/logo.png" class="wiz-logo" alt="" loading="eager"
+                         onerror="this.closest('#wiz-logo-area').style.display='none'">
+                </div>
+                <div id="wiz-content"></div>
+                <div id="wiz-preview-area" class="wiz-preview">
+                    <canvas id="wiz-preview-canvas" class="wiz-preview-canvas"></canvas>
+                </div>
+            `;
+        }
+
+        // Show/hide preview area
+        const previewArea = document.getElementById('wiz-preview-area');
+        if (previewArea) previewArea.style.display = showPreview ? '' : 'none';
+
+        // Replace only the step content
+        const contentEl = document.getElementById('wiz-content');
+        contentEl.style.animation = '';
+        contentEl.classList.remove('wiz-slide-in-right', 'wiz-slide-in-left');
+        contentEl.innerHTML = `
+            <div class="wiz-dots"  style="${d(0)}">${dots}</div>
+            <h2 class="wiz-title"  style="${d(120)}">${step.title}</h2>
+            ${hasSub ? `<p class="wiz-subtitle" style="${d(220)}">${step.subtitle}</p>` : ''}
+            <div class="wiz-body"  style="${d(hasSub ? 380 : 260)}">${step.render(this._data)}</div>
+            <div class="wiz-nav"   style="${d(hasSub ? 560 : 440)}">
+                ${isLast ? `<button class="wiz-btn-pri" onclick="Wizard._next()">Get started &#8594;</button>` : ''}
+                <div style="display:flex; gap:14px;">
+                    ${!isLast ? `<button class="wiz-btn-skip" onclick="Wizard._skipStep()">Skip this step</button>` : ''}
+                    <button class="wiz-btn-skip" onclick="Wizard._skip()">Skip all</button>
                 </div>
             </div>
         `;
 
         // Apply directional slide-in animation
         if (this._direction) {
-            const content = document.getElementById('wiz-content');
-            if (content) content.classList.add(this._direction === 'back' ? 'wiz-slide-in-left' : 'wiz-slide-in-right');
+            contentEl.classList.add(this._direction === 'back' ? 'wiz-slide-in-left' : 'wiz-slide-in-right');
             this._direction = null;
         }
 
@@ -445,6 +477,12 @@ const Wizard = {
         const nextBtn = document.getElementById('wiz-btn-next');
         if (backBtn) { backBtn.style.opacity = isFirst ? '0.25' : '1'; backBtn.style.pointerEvents = isFirst ? 'none' : ''; }
         if (nextBtn) { nextBtn.style.opacity = '1'; nextBtn.style.pointerEvents = ''; }
+
+        // Save progress
+        try {
+            localStorage.setItem('sleepapp_wizard_step', this._step);
+            localStorage.setItem('sleepapp_wizard_data', JSON.stringify(this._data));
+        } catch (e) {}
 
         requestAnimationFrame(() => this._drawPreview());
 
@@ -811,11 +849,17 @@ const Wizard = {
         const back = `<button class="wiz-change-btn" onclick="Wizard._pickBedtimeType(null)">&#8592; Change answer</button>`;
 
         if (t === 'fixed') {
+            const [bh, bm] = data.bedtime.split(':').map(Number);
             return `
                 <div class="wiz-sched-row" style="align-items:flex-end;">
                     <div class="wiz-sched-cell">
                         <label class="wiz-label">Bedtime</label>
-                        <button class="wiz-val-btn" onclick="Wizard._pickBedtime(event)">${data.bedtime}</button>
+                        <div style="display:flex; gap:4px; align-items:center;">
+                            <button class="wiz-val-btn" onclick="Wizard._pickBedtimeH(event)">${bh}</button>
+                            <span class="wiz-unit">h</span>
+                            <button class="wiz-val-btn" onclick="Wizard._pickBedtimeM(event)">${String(bm).padStart(2,'0')}</button>
+                            <span class="wiz-unit">m</span>
+                        </div>
                     </div>
                 </div>
                 ${back}
@@ -847,9 +891,21 @@ const Wizard = {
         if (type === 'variable') { this._next(); } else { this._rerenderBody(); }
     },
 
-    _pickBedtime(event) {
-        this._openPicker(event, this._timeItems(), this._data.bedtime, val => {
-            this._data.bedtime = val; this._rerenderBody();
+    _pickBedtimeH(event) {
+        const items = Array.from({ length: 24 }, (_, i) => ({ val: i, label: String(i) }));
+        const [h, m] = this._data.bedtime.split(':').map(Number);
+        this._openPicker(event, items, h, val => {
+            this._data.bedtime = String(val).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+            this._rerenderBody();
+        });
+    },
+
+    _pickBedtimeM(event) {
+        const items = Array.from({ length: 12 }, (_, i) => ({ val: i * 5, label: String(i * 5).padStart(2,'0') }));
+        const [h, m] = this._data.bedtime.split(':').map(Number);
+        this._openPicker(event, items, m, val => {
+            this._data.bedtime = String(h).padStart(2,'0') + ':' + String(val).padStart(2,'0');
+            this._rerenderBody();
         });
     },
 
@@ -913,11 +969,17 @@ const Wizard = {
         const back = `<button class="wiz-change-btn" onclick="Wizard._pickWakeType(null)">&#8592; Change answer</button>`;
 
         if (t === 'fixed') {
+            const [wh, wm] = data.wakeTime.split(':').map(Number);
             return `
                 <div class="wiz-sched-row" style="align-items:flex-end;">
                     <div class="wiz-sched-cell">
                         <label class="wiz-label">Wake time</label>
-                        <button class="wiz-val-btn" onclick="Wizard._pickWakeTime(event)">${data.wakeTime}</button>
+                        <div style="display:flex; gap:4px; align-items:center;">
+                            <button class="wiz-val-btn" onclick="Wizard._pickWakeTimeH(event)">${wh}</button>
+                            <span class="wiz-unit">h</span>
+                            <button class="wiz-val-btn" onclick="Wizard._pickWakeTimeM(event)">${String(wm).padStart(2,'0')}</button>
+                            <span class="wiz-unit">m</span>
+                        </div>
                     </div>
                 </div>
                 ${back}
@@ -949,9 +1011,21 @@ const Wizard = {
         if (type === 'variable') { this._next(); } else { this._rerenderBody(); }
     },
 
-    _pickWakeTime(event) {
-        this._openPicker(event, this._timeItems(), this._data.wakeTime, val => {
-            this._data.wakeTime = val; this._rerenderBody();
+    _pickWakeTimeH(event) {
+        const items = Array.from({ length: 24 }, (_, i) => ({ val: i, label: String(i) }));
+        const [h, m] = this._data.wakeTime.split(':').map(Number);
+        this._openPicker(event, items, h, val => {
+            this._data.wakeTime = String(val).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+            this._rerenderBody();
+        });
+    },
+
+    _pickWakeTimeM(event) {
+        const items = Array.from({ length: 12 }, (_, i) => ({ val: i * 5, label: String(i * 5).padStart(2,'0') }));
+        const [h, m] = this._data.wakeTime.split(':').map(Number);
+        this._openPicker(event, items, m, val => {
+            this._data.wakeTime = String(h).padStart(2,'0') + ':' + String(val).padStart(2,'0');
+            this._rerenderBody();
         });
     },
 
@@ -974,7 +1048,7 @@ const Wizard = {
     _pickNeedH(event, key) {
         event.stopPropagation();
         const items = Array.from({ length: 24 }, (_, h) => ({ val: h, label: String(h) }));
-        this._openGridPicker(event, items, 12, this._data[key], val => {
+        this._openGridPicker(event, items, 6, this._data[key], val => {
             this._data[key] = val; this._rerenderBody();
         });
     },
@@ -1140,6 +1214,8 @@ const Wizard = {
 
         localStorage.setItem('sleepapp_wizard_done', '1');
         localStorage.removeItem('sleepapp_show_on_reload');
+        localStorage.removeItem('sleepapp_wizard_step');
+        localStorage.removeItem('sleepapp_wizard_data');
         const _reloadChk = document.getElementById('intro-on-reload');
         if (_reloadChk) _reloadChk.checked = false;
         UI.sync();
@@ -1150,6 +1226,8 @@ const Wizard = {
     _skip() {
         localStorage.setItem('sleepapp_wizard_done', '1');
         localStorage.removeItem('sleepapp_show_on_reload');
+        localStorage.removeItem('sleepapp_wizard_step');
+        localStorage.removeItem('sleepapp_wizard_data');
         const _reloadChk = document.getElementById('intro-on-reload');
         if (_reloadChk) _reloadChk.checked = false;
         this.hide();

@@ -1,6 +1,7 @@
 const WizardPreview = {
-    _WORK_COLOR:    '#fbbf24',
+    _WORK_COLOR:    '#60a5fa',
     _SLEEP_COLOR:   '#818cf8',
+    _ONSET_COLOR:   '#312e81',
     _COMMUTE_COLOR: '#f97316',
 
     draw(canvas, data) {
@@ -35,10 +36,8 @@ const WizardPreview = {
         const hoursKnown = this._hoursKnown(data);
         const sleep      = this._buildSleep(data);
 
-        const WORK_BAR_H  = Math.floor(cH * 0.34);
-        const SLEEP_BAR_H = Math.floor(cH * 0.34);
-        const WORK_Y      = PT + Math.floor(cH * 0.07);
-        const SLEEP_Y     = PT + Math.floor(cH * 0.54);
+        const BAR_H = Math.floor(cH * 0.40);
+        const BAR_Y = PT + Math.floor((cH - BAR_H) / 2);
 
         // Chart area
         ctx.fillStyle = 'rgba(255,255,255,0.03)';
@@ -79,6 +78,7 @@ const WizardPreview = {
 
         // Work bars
         ctx.globalAlpha = 0.82;
+        ctx.fillStyle = this._WORK_COLOR;
         days.forEach((day, i) => {
             if (!day.isWork) return;
             const colX = PL + i * dayW;
@@ -93,13 +93,11 @@ const WizardPreview = {
             } else {
                 barX = colX + 1; barW = dayW - 2;
             }
-            ctx.fillStyle = this._WORK_COLOR;
-            this._bar(ctx, barX, WORK_Y, barW, WORK_BAR_H);
-            ctx.fill();
+            ctx.fillRect(barX, BAR_Y, barW, BAR_H);
         });
         ctx.globalAlpha = 1;
 
-        // Commute bars (shown adjacent to work bars when Commute is selected)
+        // Commute bars (adjacent to work bars)
         if (data.extraActivities?.includes('Commute')) {
             const toMins   = (data.commuteToWorkH   || 0) * 60 + (data.commuteToWorkM   || 0);
             const fromMins = (data.commuteFromWorkH || 0) * 60 + (data.commuteFromWorkM || 0);
@@ -113,17 +111,17 @@ const WizardPreview = {
                         const commStart = ((day.workFrom - toMins) % 1440 + 1440) % 1440;
                         const bx = colX + (commStart / 1440) * dayW;
                         const bw = Math.max(2, (toMins / 1440) * dayW);
-                        this._bar(ctx, bx, WORK_Y, bw, WORK_BAR_H); ctx.fill();
+                        ctx.fillRect(bx, BAR_Y, bw, BAR_H);
                     }
                     if (fromMins > 0) {
                         const bx = colX + (day.workTo / 1440) * dayW;
                         const bw = Math.max(2, (fromMins / 1440) * dayW);
-                        this._bar(ctx, bx, WORK_Y, bw, WORK_BAR_H); ctx.fill();
+                        ctx.fillRect(bx, BAR_Y, bw, BAR_H);
                     }
                 } else {
                     const bw = Math.max(3, dayW * 0.12);
-                    this._bar(ctx, colX + 1, WORK_Y, bw, WORK_BAR_H); ctx.fill();
-                    this._bar(ctx, colX + dayW - 1 - bw, WORK_Y, bw, WORK_BAR_H); ctx.fill();
+                    ctx.fillRect(colX + 1, BAR_Y, bw, BAR_H);
+                    ctx.fillRect(colX + dayW - 1 - bw, BAR_Y, bw, BAR_H);
                 }
             });
             ctx.globalAlpha = 1;
@@ -139,17 +137,70 @@ const WizardPreview = {
                 if (to > from) {
                     const bx = colX + (from / 1440) * dayW;
                     const bw = Math.max(2, ((to - from) / 1440) * dayW);
-                    this._bar(ctx, bx, SLEEP_Y, bw, SLEEP_BAR_H); ctx.fill();
+                    ctx.fillRect(bx, BAR_Y, bw, BAR_H);
                 } else {
                     // crosses midnight — evening part
                     const ew = Math.max(1, ((1440 - from) / 1440) * dayW);
-                    this._bar(ctx, colX + (from / 1440) * dayW, SLEEP_Y, ew, SLEEP_BAR_H); ctx.fill();
+                    ctx.fillRect(colX + (from / 1440) * dayW, BAR_Y, ew, BAR_H);
                     // morning part
                     const mw = Math.max(1, (to / 1440) * dayW);
-                    this._bar(ctx, colX, SLEEP_Y, mw, SLEEP_BAR_H); ctx.fill();
+                    ctx.fillRect(colX, BAR_Y, mw, BAR_H);
                 }
             });
             ctx.globalAlpha = 1;
+        }
+
+        // Bedtime vertical line
+        if (sleep) {
+            ctx.strokeStyle = 'rgba(129,140,248,0.7)';
+            ctx.lineWidth = 1.5;
+            days.forEach((_, i) => {
+                const colX = PL + i * dayW;
+                const lx = Math.round(colX + (sleep.from / 1440) * dayW) + 0.5;
+                ctx.beginPath();
+                ctx.moveTo(lx, BAR_Y - 3);
+                ctx.lineTo(lx, BAR_Y + BAR_H + 3);
+                ctx.stroke();
+            });
+        }
+
+        // Onset bar (overlaid on sleep bar)
+        if (sleep && data.onsetType === 'fixed') {
+            const onsetDur = (data.onsetH || 0) * 60 + (data.onsetM || 0);
+            if (onsetDur > 0) {
+                ctx.globalAlpha = 0.88;
+                ctx.fillStyle = this._ONSET_COLOR;
+                days.forEach((_, i) => {
+                    const colX = PL + i * dayW;
+                    const bx = colX + (sleep.from / 1440) * dayW;
+                    const bw = Math.max(2, (onsetDur / 1440) * dayW);
+                    ctx.fillRect(bx, BAR_Y, bw, BAR_H);
+                });
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // RAG sleep-need threshold lines (at bedtime + each duration)
+        if (sleep && data.sleepBareH !== undefined) {
+            const thresholds = [
+                { dur: (data.sleepBareH || 0) * 60 + (data.sleepBareM || 0), color: '#ef4444' },
+                { dur: (data.sleepOkH   || 0) * 60 + (data.sleepOkM   || 0), color: '#f59e0b' },
+                { dur: (data.sleepGoodH || 0) * 60 + (data.sleepGoodM || 0), color: '#22c55e' },
+            ];
+            ctx.lineWidth = 1.5;
+            thresholds.forEach(({ dur, color }) => {
+                if (dur <= 0) return;
+                const wakePos = (sleep.from + dur) % 1440;
+                ctx.strokeStyle = color + 'bb';
+                days.forEach((_, i) => {
+                    const colX = PL + i * dayW;
+                    const lx = Math.round(colX + (wakePos / 1440) * dayW) + 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(lx, BAR_Y);
+                    ctx.lineTo(lx, BAR_Y + BAR_H);
+                    ctx.stroke();
+                });
+            });
         }
     },
 
@@ -238,21 +289,5 @@ const WizardPreview = {
         if (data.shiftHoursType === 'same' && data.shiftHourPatterns[0]?.from) return true;
         if (data.shiftHoursType === 'variable') return true;
         return false;
-    },
-
-    _bar(ctx, x, y, w, h) {
-        if (w <= 0 || h <= 0) return;
-        const r = Math.min(2, w / 2, h / 2);
-        ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.lineTo(x + w - r, y);
-        ctx.arcTo(x + w, y, x + w, y + r, r);
-        ctx.lineTo(x + w, y + h - r);
-        ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-        ctx.lineTo(x + r, y + h);
-        ctx.arcTo(x, y + h, x, y + h - r, r);
-        ctx.lineTo(x, y + r);
-        ctx.arcTo(x, y, x + r, y, r);
-        ctx.closePath();
     },
 };

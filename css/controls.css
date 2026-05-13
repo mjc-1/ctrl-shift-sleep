@@ -135,16 +135,17 @@ button.length-badge:hover { filter:brightness(1.25); }
 
 /* Mobile: fill and centre within the full-screen overlay */
 @media (max-width: 600px) {
-    #wizard-overlay { align-items: flex-start; padding-top: 0; }
+    #wizard-overlay { align-items: flex-start; padding-top: 0; overflow: hidden; }
     #wizard-card {
-        min-height: 100vh;
-        min-height: 100dvh;
+        height: 100vh;
+        height: 100dvh;
         display: flex;
         flex-direction: column;
         padding: 20px 13vw max(28px, env(safe-area-inset-bottom, 28px));
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
+        overflow: hidden;
     }
+    #wiz-content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    #wiz-preview-area { flex-shrink: 0; }
     .wiz-logo-wrap { flex: 0 0 auto; align-items: center; padding-bottom: 0; }
     .wiz-title    { font-size: 1.6rem; }
     .wiz-dots     { margin-bottom: 20px; }
@@ -211,7 +212,7 @@ button.length-badge:hover { filter:brightness(1.25); }
 /* 2D grid picker (hours & minutes) */
 .wiz-pick-grid-2d { display:flex; flex-direction:column; gap:3px; padding:8px; max-height:80vh; overflow-y:auto; width:max-content; }
 .wiz-pick-grid-row { display:flex; gap:3px; flex-wrap:nowrap; }
-.wiz-pick-btn-2d { background:rgba(255,255,255,0.07); border:none; color:var(--text); border-radius:4px; cursor:pointer; padding:5px 2px; font-size:0.75rem; min-width:26px; flex:1; text-align:center; font-variant-numeric:tabular-nums; font-family:inherit; }
+.wiz-pick-btn-2d { background:rgba(255,255,255,0.07); border:none; color:var(--text); border-radius:4px; cursor:pointer; padding:5px 2px; font-size:0.75rem; min-width:26px; flex:1; text-align:center; font-variant-numeric:tabular-nums; font-family:inherit; user-select:none; -webkit-user-select:none; }
 .wiz-pick-btn-2d:hover { background:var(--primary); }
 .wiz-pick-btn-2d.active { background:var(--primary); font-weight:bold; }
 
@@ -265,6 +266,8 @@ button.length-badge:hover { filter:brightness(1.25); }
     font-size: 0.88rem;
     font-family: inherit;
     white-space: nowrap;
+    user-select: none;
+    -webkit-user-select: none;
 }
 .wiz-pick-btn:last-child { border-bottom: none; }
 .wiz-pick-btn:hover  { background: rgba(255,255,255,0.07); }
