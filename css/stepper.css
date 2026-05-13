@@ -1,0 +1,7 @@
+.stepper-wrap { display: flex; align-items: center; gap: 2px; justify-content: center; }
+.custom-stepper { display: flex; align-items: center; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; height: 26px; min-width: 45px; overflow: hidden; }
+.val-display { flex: 1; text-align: center; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.spin-btns { display: flex; flex-direction: column; border-left: 1px solid var(--border); background: var(--border); }
+.spin-btn { background: none; border: none; color: white; cursor: pointer; height: 13px; width: 16px; padding: 0; font-size: 0.5rem; display: flex; align-items: center; justify-content: center; }
+.spin-btn:hover { background: #475569; }
+.spin-btn:first-child { border-bottom: 1px solid var(--border); }

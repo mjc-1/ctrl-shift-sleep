@@ -1,0 +1,17 @@
+:root {
+    --primary: #818cf8;
+    --bg: #0f172a;
+    --card: #1e293b;
+    --text: #f8fafc;
+    --border: #475569;
+    --danger: #ef4444;
+    --warn: #fbbf24;
+    --success: #10b981;
+    --c-total: #60a5fa;
+    --c-rem: #818cf8;
+    --card-rgb: 30, 41, 59;
+    --card-opacity: 0.50;
+    --font-family: system-ui, sans-serif;
+    --font-scale: 1;
+    --font-color: var(--text);
+}

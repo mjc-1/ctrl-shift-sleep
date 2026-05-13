@@ -1,0 +1,5 @@
+table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: 1000px; }
+th { font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; text-align: center; padding: 0 4px 8px 4px; }
+.th-inner { border-bottom: 1px solid var(--border); padding-bottom: 8px; width: 100%; display: block; }
+td { padding: 6px 2px; text-align: center; vertical-align: middle; }
+input, select { background: #0f172a; color: white; border: 1px solid var(--border); border-radius: 4px; padding: 4px; font-size: 0.7rem; width: 100%; box-sizing: border-box; text-align: center; }

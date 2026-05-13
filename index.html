@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Sleep Planner - Engine v10.3</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/table.css">
+    <link rel="stylesheet" href="css/stepper.css">
+    <link rel="stylesheet" href="css/analytics.css">
+    <link rel="stylesheet" href="css/chart.css">
+    <link rel="stylesheet" href="css/controls.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="icons/icon.svg">
+</head>
+<body>
+
+<div id="app-toolbar" style="position:fixed; top:12px; right:12px; z-index:1500; display:flex; gap:4px; align-items:center;">
+    <label class="intro-reload-label" style="margin-right:6px;">Show intro on reload <input type="checkbox" id="intro-on-reload"></label>
+    <button class="btn-tool" onclick="History.undo()" title="Undo (Ctrl+Z)" style="font-size:0.75rem; padding:3px 8px;">↩</button>
+    <button class="btn-tool" onclick="History.redo()" title="Redo (Ctrl+Y)" style="font-size:0.75rem; padding:3px 8px;">↪</button>
+    <button class="btn-tool" onclick="UI.toggleAppearanceMenu(event)" style="font-size:0.75rem; padding:3px 8px;" title="Appearance">🎨</button>
+    <button class="btn-tool" onclick="Actions.save(event)" style="font-size:0.75rem; padding:3px 8px;" title="Save">💾</button>
+    <button class="btn-tool" onclick="Actions.load(event)" style="font-size:0.75rem; padding:3px 8px;" title="Load">📂</button>
+    <button class="btn-tool" onclick="UI.toggleExportMenu(event)" style="font-size:0.75rem; padding:3px 8px;" title="Export">📤</button>
+</div>
+
+<div id="main-content">
+    <div class="name-bar">
+        <input type="text" id="plan-name" class="plan-name-input" placeholder="Untitled plan…">
+    </div>
+    <div class="tab-bar">
+        <button class="tab-btn" data-tab="activities" onclick="UI.switchTab('activities')">Activities</button>
+        <button class="tab-btn active" data-tab="analytics" onclick="UI.switchTab('analytics')">Analytics</button>
+        <button class="tab-btn" data-tab="graph" onclick="UI.switchTab('graph')">Graph</button>
+    </div>
+
+    <div id="tab-activities" class="tab-panel">
+        <div class="column" id="col-activities">
+            <div class="col-content">
+                <table class="act-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 120px;"><span class="th-inner">Activity</span></th>
+                            <th style="width: 130px;"><span class="th-inner">From</span></th>
+                            <th style="width: 130px;"><span class="th-inner">To</span></th>
+                            <th style="width: 80px;"><span class="th-inner">Length</span></th>
+                            <th style="width: 100px;"><span class="th-inner">Every</span></th>
+                            <th style="width: 130px;"><span class="th-inner">Starting</span></th>
+                            <th style="width: 60px;"><span class="th-inner">Forever</span></th>
+                            <th style="width: 130px;"><span class="th-inner">Ending</span></th>
+                            <th style="width: 60px;"><span class="th-inner">Span</span></th>
+                            <th style="width: 60px;"><span class="th-inner">Remove</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="activity-list"></tbody>
+                </table>
+            </div>
+            <div class="footer-strip">
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <span style="font-size: 0.7rem; color: #94a3b8; font-weight: bold;">ADD ACTIVITY:</span>
+                    <button class="btn-tool" onclick="Actions.add('Sleep', '#818cf8', 'Sleep')">🌙 Sleep</button>
+                    <button class="btn-tool" onclick="Actions.add('Work shift', '#fbbf24', 'Work')">💼 Work</button>
+                    <div style="position:relative;">
+                        <button class="btn-tool" onclick="UI.toggleOtherMenu(event)">＋ Other ▾</button>
+                        <div class="preset-menu" id="other-menu">
+                            <button class="preset-btn" onclick="Actions.add('Commute','#f97316','Commute'); UI.closeOtherMenu()">🚌 Commute</button>
+                            <button class="preset-btn" onclick="Actions.add('Exercise','#22d3ee','Exercise'); UI.closeOtherMenu()">🏋️ Exercise</button>
+                            <button class="preset-btn" onclick="Actions.add('Family time','#ec4899','Family'); UI.closeOtherMenu()">👨‍👩‍👧 Family time</button>
+                            <button class="preset-btn" onclick="Actions.add('','#10b981','Custom'); UI.closeOtherMenu()">✏️ Something else</button>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:4px;">
+                    <label class="tooltip" title="Sleep Onset Latency: Time to fall asleep." style="font-size:0.7rem; color:#94a3b8; margin-right:2px;">Onset</label>
+                    <div id="onset-h-mount"></div>
+                    <span style="font-size:0.65rem; color:#64748b;">h</span>
+                    <div id="onset-m-mount"></div>
+                    <span style="font-size:0.65rem; color:#64748b;">m</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-analytics" class="tab-panel active">
+        <div class="column" id="col-analytics">
+            <div class="col-content">
+                <div style="display:grid; grid-template-columns: 120px 1fr; min-width:700px; align-items:end; padding-bottom:4px; border-bottom: 1px solid var(--border);">
+                    <div style="font-size:0.6rem; color:#94a3b8; text-transform:uppercase; text-align:center; padding-bottom:4px; border-right: 1px solid var(--border);">Time Period</div>
+                    <div style="text-align:center; font-size:0.7rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; padding-bottom:4px;">Sleep</div>
+                </div>
+                <div class="stats-sub-header" style="padding-top:4px; padding-bottom:0;">
+                    <div class="period-cell"></div>
+                    <div></div>
+                    <div style="border-left:1px solid var(--border); padding: 0 8px;"><span style="display:block; text-align:center; font-size:0.6rem; color:#94a3b8; text-transform:uppercase; padding-bottom:8px;">Target</span></div>
+                    <div style="border-left:1px solid var(--border); padding: 0 8px;"><span style="display:block; text-align:center; font-size:0.6rem; color:#94a3b8; text-transform:uppercase; padding-bottom:8px;">Actual (expected)</span></div>
+                    <div style="border-left:1px solid var(--border); padding: 0 8px;"><span style="display:block; text-align:center; font-size:0.6rem; color:#94a3b8; text-transform:uppercase; padding-bottom:8px;">Debt (expected)</span></div>
+                </div>
+                <div id="stats-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-graph" class="tab-panel">
+        <div class="column" id="col-chart">
+            <div class="scroll-container" style="border:none; border-radius:0;">
+                <div class="sticky-y-axis">
+                    <div id="lbl-Awake" class="abs-y-label">Awake</div>
+                    <div id="lbl-N1" class="abs-y-label">N1</div>
+                    <div id="lbl-N2" class="abs-y-label">N2</div>
+                    <div id="lbl-N3" class="abs-y-label">N3</div>
+                    <div id="lbl-REM" class="abs-y-label">REM</div>
+                </div>
+                <div class="main-scroll-view" id="scroll-engine">
+                    <div class="canvas-sizer" id="canvas-sizer"><canvas id="sleepChart"></canvas></div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:20px; padding:8px 15px; border-top: 1px solid var(--border); flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:0.8rem; color:#94a3b8;">Show</span>
+                    <div id="days-mount"></div>
+                    <span style="font-size:0.8rem; color:#94a3b8;">days</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:0.8rem">🔍 Zoom level</span>
+                    <input type="number" id="zoom-ctrl" value="1.0" step="0.5" min="1.0" style="width: 50px" oninput="ChartEngine.refreshZoom()">
+                    <span id="zoom-hint" style="font-size: 0.65rem; color: #94a3b8"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="wizard-overlay" onclick="Wizard._closePicker(); event.stopPropagation();">
+    <div id="wizard-card"></div>
+</div>
+
+<div id="wiz-picker" onclick="event.stopPropagation()"></div>
+<div id="num-picker"></div>
+<div id="persist-menu" onclick="event.stopPropagation()"></div>
+<div id="cal-picker"   onclick="event.stopPropagation()"></div>
+
+<!-- Merged Appearance + Colour Themes menu -->
+<div id="appearance-menu" onclick="event.stopPropagation()">
+    <div class="pm-title">Colour Scheme</div>
+    <button class="preset-btn" onclick="UI.applyTheme('Midnight')">🌑 Midnight</button>
+    <button class="preset-btn" onclick="UI.applyTheme('Deep Sea')">🌊 Deep Sea</button>
+    <button class="preset-btn" onclick="UI.applyTheme('Ember')">🌅 Ember</button>
+    <button class="preset-btn" onclick="UI.applyTheme('Forest')">🌿 Forest</button>
+    <button class="preset-btn" onclick="UI.applyTheme('Steel')">⚙️ Steel</button>
+    <div class="pm-title" style="margin-top:4px;">Background</div>
+    <div style="padding:2px 6px 2px; display:flex; align-items:center; gap:6px;">
+        <button class="theme-bg-btn" id="bg-btn-none" onclick="UI.applyBackground('none')" title="No background" style="flex:0 0 auto; padding:3px 10px;">None</button>
+    </div>
+    <div class="theme-img-row" id="bg-img-row"></div>
+    <div style="padding:1px 6px 3px;">
+        <div style="display:flex; gap:4px; margin-top:4px;">
+            <input type="text" class="pm-input" id="bg-url-input" placeholder="Paste any image URL…" style="margin-bottom:0; flex:1;" onkeyup="if(event.key==='Enter'){UI.applyCustomBg(this.value);this.value='';}">
+            <button class="btn-tool" style="white-space:nowrap; font-size:0.75rem; padding:3px 8px;" onclick="UI.applyCustomBg(document.getElementById('bg-url-input').value); document.getElementById('bg-url-input').value='';">Apply</button>
+        </div>
+    </div>
+    <div class="pm-title" style="margin-top:4px;">Custom Colours</div>
+    <div class="cc-grid" style="padding:2px 10px 4px;">
+        <div class="cc-row"><span>Text</span>   <input type="color" id="cc-text"   class="ap-color" oninput="UI.applyCustomColor('text',this.value)"></div>
+        <div class="cc-row"><span>Inputs</span> <input type="color" id="cc-bg"     class="ap-color" oninput="UI.applyCustomColor('bg',this.value)"></div>
+        <div class="cc-row"><span>Card</span>   <input type="color" id="cc-card"   class="ap-color" oninput="UI.applyCustomColor('card',this.value)"></div>
+        <div class="cc-row"><span>Border</span> <input type="color" id="cc-border" class="ap-color" oninput="UI.applyCustomColor('border',this.value)"></div>
+    </div>
+    <div class="pm-title" style="margin-top:4px;">Activity Colours</div>
+    <div class="cc-grid" id="act-color-list" style="padding:2px 10px 4px;"></div>
+    <div class="pm-title" style="margin-top:4px; border-top:1px solid var(--border); padding-top:6px;">Font</div>
+    <label class="theme-slider-row">
+        <span>Face</span>
+        <select id="font-face" onchange="UI.setFont()" class="ap-select">
+            <option value="system-ui, sans-serif">System default</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="'Courier New', monospace">Monospace</option>
+            <option value="'Segoe UI', Tahoma, sans-serif">Segoe UI</option>
+        </select>
+    </label>
+    <label class="theme-slider-row">
+        <span>Size</span>
+        <input type="range" id="font-size-sl" min="80" max="130" step="5" value="100" oninput="UI.setFont()">
+        <span id="font-size-lbl" style="min-width:30px; text-align:right; font-size:0.65rem; color:#94a3b8;">100%</span>
+    </label>
+    <label class="theme-slider-row" style="gap:4px;">
+        <span>Colour</span>
+        <input type="color" id="font-color" value="#f8fafc" oninput="UI.setFont()" class="ap-color">
+        <button class="cal-nav-btn" onclick="UI.resetFontColor()" title="Reset to theme colour">↺</button>
+    </label>
+    <div class="pm-title" style="margin-top:4px;">Display</div>
+    <label class="theme-slider-row"><span>Card opacity</span><input type="range" id="sl-opacity"  min="0.1" max="1"   step="0.05" value="0.5" oninput="UI.setCardOpacity(this.value)"></label>
+    <label class="theme-slider-row"><span>Brightness</span>  <input type="range" id="sl-bright"   min="0.6" max="1.5" step="0.05" value="1"   oninput="UI.setFilter()"></label>
+    <label class="theme-slider-row"><span>Contrast</span>    <input type="range" id="sl-contrast" min="0.7" max="1.4" step="0.05" value="1"   oninput="UI.setFilter()"></label>
+</div>
+
+<!-- Export menu — table of targets × formats -->
+<div id="export-menu" onclick="event.stopPropagation()">
+    <div class="pm-title">Export</div>
+    <table class="ex-table">
+        <thead>
+            <tr>
+                <th></th>
+                <th>PDF</th><th>JPG</th><th>PNG</th><th>TXT</th><th>CSV</th><th>XLSX</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Graph</td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('graph','pdf')">↓</button></td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('graph','jpg')">↓</button></td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('graph','png')">↓</button></td>
+                <td></td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('graph','csv')">↓</button></td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('graph','xlsx')">↓</button></td>
+            </tr>
+            <tr>
+                <td>Activities</td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('activities','pdf')">↓</button></td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('activities','jpg')">↓</button></td>
+                <td></td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('activities','txt')">↓</button></td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('activities','csv')">↓</button></td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('activities','xlsx')">↓</button></td>
+            </tr>
+            <tr>
+                <td>Analytics</td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('analytics','pdf')">↓</button></td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('analytics','jpg')">↓</button></td>
+                <td></td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('analytics','txt')">↓</button></td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('analytics','csv')">↓</button></td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('analytics','xlsx')">↓</button></td>
+            </tr>
+            <tr>
+                <td>Whole Page</td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('page','pdf')">↓</button></td>
+                <td><button class="ex-btn" onclick="Actions.exportFile('page','jpg')">↓</button></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+    <div class="ex-opts">
+        <label><input type="checkbox" id="ex-printer-friendly"> Printer friendly</label>
+        <label><input type="checkbox" id="ex-withbg" checked> Background image</label>
+        <label>Res. <input type="range" id="ex-scale" min="1" max="4" step="0.5" value="1" style="width:55px; vertical-align:middle;" oninput="document.getElementById('ex-scale-lbl').textContent=this.value+'×'"> <span id="ex-scale-lbl" style="font-size:0.65rem; color:#94a3b8; min-width:20px;">1×</span></label>
+    </div>
+</div>
+
+<script src="js/state.js"></script>
+<script src="js/history.js"></script>
+<script src="js/utils/format.js"></script>
+<script src="js/utils/time.js"></script>
+<script src="js/utils/stepper.js"></script>
+<script src="js/utils/index.js"></script>
+<script src="js/actions/activities.js"></script>
+<script src="js/actions/time.js"></script>
+<script src="js/actions/fields.js"></script>
+<script src="js/actions/targets.js"></script>
+<script src="js/actions/persist.js"></script>
+<script src="js/actions/view.js"></script>
+<script src="js/actions/export.js"></script>
+<script src="js/actions/index.js"></script>
+<script src="js/ui/drag-reorder.js"></script>
+<script src="js/ui/picker.js"></script>
+<script src="js/ui/menus.js"></script>
+<script src="js/ui/persist-menu.js"></script>
+<script src="js/ui/activity-row.js"></script>
+<script src="js/ui/analytics-cells.js"></script>
+<script src="js/ui/analytics.js"></script>
+<script src="js/ui/sync.js"></script>
+<script src="js/ui/calendar.js"></script>
+<script src="js/ui/themes.js"></script>
+<script src="js/ui/wizard-preview.js"></script>
+<script src="js/ui/wizard.js"></script>
+<script src="js/ui/index.js"></script>
+<script src="js/chart/activity-icons.js"></script>
+<script src="js/chart/plugins.js"></script>
+<script src="js/chart/init.js"></script>
+<script src="js/chart/hypnogram.js"></script>
+<script src="js/chart/render.js"></script>
+<script src="js/chart/zoom.js"></script>
+<script src="js/chart/index.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
