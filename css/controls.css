@@ -116,18 +116,18 @@ button.length-badge:hover { filter:brightness(1.25); }
         min-height: 100vh;
         display: flex;
         flex-direction: column;
-        justify-content: center;
         padding: 20px 13vw;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
     }
+    .wiz-logo-wrap { flex: 1; align-items: center; padding-bottom: 0; }
     .wiz-title    { font-size: 1.6rem; }
     .wiz-dots     { margin-bottom: 20px; }
     .wiz-subtitle { font-size: 0.9rem; margin-bottom: 18px; }
     .wiz-nav      { margin-top: 20px; }
     .wiz-preview  { margin-top: 10px; }
     .wiz-preview-canvas { height: 68px; }
-    .wiz-logo     { width: 90px; height: 60px; margin-bottom: 14px; }
+    .wiz-logo     { width: 90px; height: 90px; }
 }
 
 #wiz-content > * {
@@ -137,7 +137,8 @@ button.length-badge:hover { filter:brightness(1.25); }
     animation-fill-mode: both;
 }
 
-.wiz-logo    { width:108px; height:72px; border-radius:14px; object-fit:cover; display:block; margin:0 auto 22px; }
+.wiz-logo-wrap { display:flex; justify-content:center; padding-bottom:20px; animation-name:wiz-fade-up; animation-duration:0.45s; animation-timing-function:cubic-bezier(0.22,1,0.36,1); animation-fill-mode:both; }
+.wiz-logo    { width:108px; height:108px; border-radius:14px; object-fit:cover; display:block; }
 .wiz-dots    { display:flex; gap:10px; margin-bottom:36px; }
 .wiz-dot     { width:6px; height:6px; border-radius:50%; background:var(--border); transition:background 0.3s, transform 0.3s; }
 .wiz-dot.active { background:var(--primary); transform:scale(1.4); }

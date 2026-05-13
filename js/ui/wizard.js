@@ -350,8 +350,10 @@ const Wizard = {
 
         const showPreview = this._step >= 1;
         document.getElementById('wizard-card').innerHTML = `
+            <div class="wiz-logo-wrap" style="${d(0)}">
+                <img src="icons/logo.png" class="wiz-logo" alt="" loading="eager" onerror="this.closest('.wiz-logo-wrap').style.display='none'">
+            </div>
             <div id="wiz-content">
-                <img src="icons/logo.png" class="wiz-logo" alt="" loading="eager" onerror="this.style.display='none'">
                 <div class="wiz-dots"  style="${d(0)}">${dots}</div>
                 <h2 class="wiz-title"  style="${d(120)}">${step.title}</h2>
                 ${hasSub ? `<p class="wiz-subtitle" style="${d(220)}">${step.subtitle}</p>` : ''}

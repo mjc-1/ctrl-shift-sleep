@@ -1,4 +1,4 @@
-const CACHE = 'sleep-planner-v3';
+const CACHE = 'sleep-planner-v4';
 const ASSETS = [
     './', './index.html',
     './css/variables.css', './css/base.css', './css/table.css', './css/stepper.css',
