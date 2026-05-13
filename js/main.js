@@ -46,3 +46,17 @@ document.addEventListener('keydown', e => {
 document.getElementById('scroll-engine').addEventListener('wheel', e => {
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) { e.preventDefault(); e.currentTarget.scrollLeft += e.deltaX; }
 }, { passive: false });
+
+// Swipe left on main content to reopen last wizard screen
+(function () {
+    let sx = 0, sy = 0;
+    const mc = document.getElementById('main-content');
+    if (!mc) return;
+    mc.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    mc.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - sx;
+        const dy = e.changedTouches[0].clientY - sy;
+        if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+        if (dx < 0) Wizard.showFromLast();
+    }, { passive: true });
+})();

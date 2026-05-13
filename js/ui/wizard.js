@@ -2,6 +2,8 @@ const Wizard = {
     _step: 0,
     _data: {},
     _pickerCb: null,
+    _lastStep: null,
+    _swipeAttached: false,
 
     _defaultData() {
         return {
@@ -25,6 +27,8 @@ const Wizard = {
             sleepGoodH: 8,  sleepGoodM: 30,
             extraActivities: [],
             customActivities: [],
+            commuteToWorkH: 0,   commuteToWorkM: 30,
+            commuteFromWorkH: 0, commuteFromWorkM: 30,
             days: 14,
         };
     },
@@ -207,16 +211,18 @@ const Wizard = {
             subtitle: 'This sets your sleep targets in the analytics.',
             render(data) {
                 const cols = [
-                    { label: 'barely\nfunctional', hKey: 'sleepBareH', mKey: 'sleepBareM' },
-                    { label: 'getting\nby',         hKey: 'sleepOkH',   mKey: 'sleepOkM'   },
-                    { label: 'comfortable',         hKey: 'sleepGoodH', mKey: 'sleepGoodM' },
+                    { label: 'barely<br>functional', hKey: 'sleepBareH', mKey: 'sleepBareM' },
+                    { label: 'getting<br>by',         hKey: 'sleepOkH',   mKey: 'sleepOkM'   },
+                    { label: 'comfortable',           hKey: 'sleepGoodH', mKey: 'sleepGoodM' },
                 ];
                 const cells = cols.map(c => `
                     <div class="wiz-sleep-col">
-                        <div class="wiz-sleep-col-label">${c.label.replace('\n', '<br>')}</div>
+                        <div class="wiz-sleep-col-label">${c.label}</div>
                         <div class="wiz-sleep-pickers">
-                            <button class="wiz-val-btn" onclick="Wizard._pickNeedH(event,'${c.hKey}')">${data[c.hKey]}h</button>
-                            <button class="wiz-val-btn" onclick="Wizard._pickNeedM(event,'${c.mKey}')">${data[c.mKey]}m</button>
+                            <button class="wiz-val-btn" onclick="Wizard._pickNeedH(event,'${c.hKey}')">${data[c.hKey]}</button>
+                            <span class="wiz-unit">h</span>
+                            <button class="wiz-val-btn" onclick="Wizard._pickNeedM(event,'${c.mKey}')">${data[c.mKey]}</button>
+                            <span class="wiz-unit">m</span>
                         </div>
                     </div>`).join('');
                 const wMins = (data.sleepGoodH * 60 + data.sleepGoodM) * 7;
@@ -258,8 +264,33 @@ const Wizard = {
                                onkeydown="if(event.key==='Enter'){event.preventDefault();Wizard._addCustom();}">
                         <button class="wiz-remove-btn" onclick="Wizard._removeCustom(${i})">✕</button>
                     </div>`).join('');
+
+                const commuteInputs = data.extraActivities.includes('Commute') ? `
+                    <div class="wiz-commute-inputs">
+                        <div class="wiz-commute-row">
+                            <span class="wiz-label" style="margin-bottom:0;">To work</span>
+                            <div class="wiz-sleep-pickers">
+                                <button class="wiz-val-btn" onclick="Wizard._pickCommuteH(event,'To')">${data.commuteToWorkH}</button>
+                                <span class="wiz-unit">h</span>
+                                <button class="wiz-val-btn" onclick="Wizard._pickCommuteM(event,'To')">${data.commuteToWorkM}</button>
+                                <span class="wiz-unit">m</span>
+                            </div>
+                        </div>
+                        <div class="wiz-commute-row">
+                            <span class="wiz-label" style="margin-bottom:0;">From work</span>
+                            <div class="wiz-sleep-pickers">
+                                <button class="wiz-val-btn" onclick="Wizard._pickCommuteH(event,'From')">${data.commuteFromWorkH}</button>
+                                <span class="wiz-unit">h</span>
+                                <button class="wiz-val-btn" onclick="Wizard._pickCommuteM(event,'From')">${data.commuteFromWorkM}</button>
+                                <span class="wiz-unit">m</span>
+                            </div>
+                        </div>
+                    </div>
+                ` : '';
+
                 return `
                     <div class="wiz-presets">${btns}</div>
+                    ${commuteInputs}
                     ${customRows}
                     <div style="margin-top:10px;">
                         <button class="wiz-preset" onclick="Wizard._addCustom()">✏️ Something else</button>
@@ -278,7 +309,7 @@ const Wizard = {
         // 9 — Planning horizon
         {
             title: 'Planning horizon',
-            subtitle: 'How many days ahead would you like to plan?',
+            subtitle: 'How many days would you like to plan?',
             render(data) {
                 const presets = [7, 14, 28, 90];
                 const btns = presets.map(n =>
@@ -323,10 +354,42 @@ const Wizard = {
                 this._renderContent(true);
             });
         });
+        if (!this._swipeAttached) {
+            this._swipeAttached = true;
+            let sx = 0, sy = 0;
+            overlay.addEventListener('touchstart', e => {
+                sx = e.touches[0].clientX;
+                sy = e.touches[0].clientY;
+            }, { passive: true });
+            overlay.addEventListener('touchend', e => {
+                const dx = e.changedTouches[0].clientX - sx;
+                const dy = e.changedTouches[0].clientY - sy;
+                if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+                const picker = document.getElementById('wiz-picker');
+                if (picker && picker.style.display !== 'none') { this._closePicker(); return; }
+                if (dx < 0) this._next();
+                else        this._back();
+            }, { passive: true });
+        }
+    },
+
+    showFromLast() {
+        const overlay = document.getElementById('wizard-overlay');
+        this._step = (this._lastStep !== null && this._lastStep !== undefined)
+            ? this._lastStep
+            : this._steps.length - 1;
+        overlay.style.display = 'flex';
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                overlay.classList.add('wiz-visible');
+                this._renderContent(false);
+            });
+        });
     },
 
     hide() {
         this._closePicker();
+        this._lastStep = this._step;
         const overlay = document.getElementById('wizard-overlay');
         overlay.classList.remove('wiz-visible');
         setTimeout(() => { overlay.style.display = 'none'; }, 320);
@@ -360,16 +423,10 @@ const Wizard = {
                 <div class="wiz-body"  style="${d(hasSub ? 380 : 260)}">${step.render(this._data)}</div>
                 ${showPreview ? `<div class="wiz-preview" style="${d(hasSub ? 460 : 340)}"><canvas id="wiz-preview-canvas" class="wiz-preview-canvas"></canvas></div>` : ''}
                 <div class="wiz-nav"   style="${d(hasSub ? 560 : 440)}">
-                    <button class="wiz-btn-sec" onclick="Wizard._back()"
-                            ${isFirst ? 'style="visibility:hidden"' : ''}>&#8592; Back</button>
-                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
-                        <button class="wiz-btn-pri" onclick="Wizard._next()">
-                            ${isLast ? 'Get started &#8594;' : 'Next &#8594;'}
-                        </button>
-                        <div style="display:flex; gap:14px;">
-                            ${!isLast ? `<button class="wiz-btn-skip" onclick="Wizard._skipStep()">Skip this step</button>` : ''}
-                            <button class="wiz-btn-skip" onclick="Wizard._skip()">Skip all</button>
-                        </div>
+                    ${isLast ? `<button class="wiz-btn-pri" onclick="Wizard._next()">Get started &#8594;</button>` : ''}
+                    <div style="display:flex; gap:14px;">
+                        ${!isLast ? `<button class="wiz-btn-skip" onclick="Wizard._skipStep()">Skip this step</button>` : ''}
+                        <button class="wiz-btn-skip" onclick="Wizard._skip()">Skip all</button>
                     </div>
                 </div>
             </div>
@@ -458,6 +515,7 @@ const Wizard = {
         const rect = btn.getBoundingClientRect();
 
         const el = document.getElementById('wiz-picker');
+        el.style.transform = '';
         el.innerHTML = `<div class="wiz-pick-wrap">${items.map(o => {
             const active = String(o.val) === String(currentVal);
             const v = typeof o.val === 'string' ? `'${o.val}'` : o.val;
@@ -484,6 +542,35 @@ const Wizard = {
         });
     },
 
+    _openGridPicker(event, items, cols, currentVal, onPick) {
+        event.stopPropagation();
+        this._pickerCb = onPick;
+        const el = document.getElementById('wiz-picker');
+
+        const rows = [];
+        for (let i = 0; i < items.length; i += cols) rows.push(items.slice(i, i + cols));
+
+        el.innerHTML = `<div class="wiz-pick-grid-2d">${
+            rows.map(row => `<div class="wiz-pick-grid-row">${
+                row.map(o => {
+                    const active = String(o.val) === String(currentVal);
+                    const v = typeof o.val === 'number' ? o.val : `'${o.val}'`;
+                    return `<button class="wiz-pick-btn-2d${active ? ' active' : ''}" onclick="Wizard._pickVal(${v})">${o.label}</button>`;
+                }).join('')
+            }</div>`).join('')
+        }</div>`;
+
+        el.style.display   = 'block';
+        el.style.top       = '50%';
+        el.style.left      = '50%';
+        el.style.transform = 'translate(-50%, -50%)';
+
+        requestAnimationFrame(() => {
+            const active = el.querySelector('.wiz-pick-btn-2d.active');
+            if (active) active.scrollIntoView({ block: 'center', behavior: 'instant' });
+        });
+    },
+
     _pickVal(val) {
         if (this._pickerCb) this._pickerCb(val);
         this._pickerCb = null;
@@ -492,7 +579,7 @@ const Wizard = {
 
     _closePicker() {
         const el = document.getElementById('wiz-picker');
-        if (el) el.style.display = 'none';
+        if (el) { el.style.display = 'none'; el.style.transform = ''; }
         this._pickerCb = null;
     },
 
@@ -715,9 +802,11 @@ const Wizard = {
                 <div class="wiz-sched-row" style="align-items:flex-end;">
                     <div class="wiz-sched-cell">
                         <label class="wiz-label">After shift ends</label>
-                        <div style="display:flex; gap:4px;">
-                            <button class="wiz-val-btn" onclick="Wizard._pickBedOffH(event)">${data.bedtimeOffsetH}h</button>
-                            <button class="wiz-val-btn" onclick="Wizard._pickBedOffM(event)">${data.bedtimeOffsetM}m</button>
+                        <div style="display:flex; gap:4px; align-items:center;">
+                            <button class="wiz-val-btn" onclick="Wizard._pickBedOffH(event)">${data.bedtimeOffsetH}</button>
+                            <span class="wiz-unit">h</span>
+                            <button class="wiz-val-btn" onclick="Wizard._pickBedOffM(event)">${data.bedtimeOffsetM}</button>
+                            <span class="wiz-unit">m</span>
                         </div>
                     </div>
                 </div>
@@ -740,14 +829,14 @@ const Wizard = {
     },
 
     _pickBedOffH(event) {
-        const items = Array.from({ length: 9 }, (_, i) => ({ val: i, label: `${i}h` }));
+        const items = Array.from({ length: 9 }, (_, i) => ({ val: i, label: String(i) }));
         this._openPicker(event, items, this._data.bedtimeOffsetH, val => {
             this._data.bedtimeOffsetH = val; this._rerenderBody();
         });
     },
 
     _pickBedOffM(event) {
-        const items = Array.from({ length: 12 }, (_, i) => ({ val: i * 5, label: `${i * 5}m` }));
+        const items = Array.from({ length: 12 }, (_, i) => ({ val: i * 5, label: String(i * 5).padStart(2,'0') }));
         this._openPicker(event, items, this._data.bedtimeOffsetM, val => {
             this._data.bedtimeOffsetM = val; this._rerenderBody();
         });
@@ -761,9 +850,11 @@ const Wizard = {
             <div class="wiz-sched-row" style="align-items:flex-end;">
                 <div class="wiz-sched-cell">
                     <label class="wiz-label">Time to fall asleep</label>
-                    <div style="display:flex; gap:4px;">
-                        <button class="wiz-val-btn" onclick="Wizard._pickOnsetH(event)">${data.onsetH}h</button>
-                        <button class="wiz-val-btn" onclick="Wizard._pickOnsetM(event)">${data.onsetM}m</button>
+                    <div style="display:flex; gap:4px; align-items:center;">
+                        <button class="wiz-val-btn" onclick="Wizard._pickOnsetH(event)">${data.onsetH}</button>
+                        <span class="wiz-unit">h</span>
+                        <button class="wiz-val-btn" onclick="Wizard._pickOnsetM(event)">${data.onsetM}</button>
+                        <span class="wiz-unit">m</span>
                     </div>
                 </div>
             </div>
@@ -777,14 +868,14 @@ const Wizard = {
     },
 
     _pickOnsetH(event) {
-        const items = Array.from({ length: 4 }, (_, i) => ({ val: i, label: `${i}h` }));
+        const items = Array.from({ length: 4 }, (_, i) => ({ val: i, label: String(i) }));
         this._openPicker(event, items, this._data.onsetH, val => {
             this._data.onsetH = val; this._rerenderBody();
         });
     },
 
     _pickOnsetM(event) {
-        const items = Array.from({ length: 12 }, (_, i) => ({ val: i * 5, label: `${i * 5}m` }));
+        const items = Array.from({ length: 12 }, (_, i) => ({ val: i * 5, label: String(i * 5).padStart(2,'0') }));
         this._openPicker(event, items, this._data.onsetM, val => {
             this._data.onsetM = val; this._rerenderBody();
         });
@@ -814,8 +905,10 @@ const Wizard = {
                     <div class="wiz-sched-cell">
                         <label class="wiz-label">Sleep duration</label>
                         <div style="display:flex; gap:4px; align-items:center;">
-                            <button class="wiz-val-btn" onclick="Wizard._pickWakeDurH(event)">${data.wakeDurationH}h</button>
-                            <button class="wiz-val-btn" onclick="Wizard._pickWakeDurM(event)">${data.wakeDurationM}m</button>
+                            <button class="wiz-val-btn" onclick="Wizard._pickWakeDurH(event)">${data.wakeDurationH}</button>
+                            <span class="wiz-unit">h</span>
+                            <button class="wiz-val-btn" onclick="Wizard._pickWakeDurM(event)">${data.wakeDurationM}</button>
+                            <span class="wiz-unit">m</span>
                         </div>
                     </div>
                 </div>
@@ -838,14 +931,14 @@ const Wizard = {
     },
 
     _pickWakeDurH(event) {
-        const items = Array.from({ length: 15 }, (_, i) => ({ val: i, label: `${i}h` }));
+        const items = Array.from({ length: 15 }, (_, i) => ({ val: i, label: String(i) }));
         this._openPicker(event, items, this._data.wakeDurationH, val => {
             this._data.wakeDurationH = val; this._rerenderBody();
         });
     },
 
     _pickWakeDurM(event) {
-        const items = Array.from({ length: 12 }, (_, i) => ({ val: i * 5, label: `${i * 5}m` }));
+        const items = Array.from({ length: 12 }, (_, i) => ({ val: i * 5, label: String(i * 5).padStart(2,'0') }));
         this._openPicker(event, items, this._data.wakeDurationM, val => {
             this._data.wakeDurationM = val; this._rerenderBody();
         });
@@ -854,15 +947,17 @@ const Wizard = {
     // ── Sleep needs ───────────────────────────────────────────────────────
 
     _pickNeedH(event, key) {
-        const items = Array.from({ length: 25 }, (_, h) => ({ val: h, label: `${h}h` }));
-        this._openPicker(event, items, this._data[key], val => {
+        event.stopPropagation();
+        const items = Array.from({ length: 24 }, (_, h) => ({ val: h, label: String(h) }));
+        this._openGridPicker(event, items, 12, this._data[key], val => {
             this._data[key] = val; this._rerenderBody();
         });
     },
 
     _pickNeedM(event, key) {
-        const items = Array.from({ length: 12 }, (_, i) => ({ val: i * 5, label: `${i * 5}m` }));
-        this._openPicker(event, items, this._data[key], val => {
+        event.stopPropagation();
+        const items = Array.from({ length: 60 }, (_, m) => ({ val: m, label: String(m).padStart(2, '0') }));
+        this._openGridPicker(event, items, 10, this._data[key], val => {
             this._data[key] = val; this._rerenderBody();
         });
     },
@@ -873,8 +968,31 @@ const Wizard = {
         const idx = this._data.extraActivities.indexOf(type);
         if (idx === -1) this._data.extraActivities.push(type);
         else            this._data.extraActivities.splice(idx, 1);
-        document.querySelectorAll('.wiz-preset[data-type]').forEach(b => {
-            b.classList.toggle('active', this._data.extraActivities.includes(b.dataset.type));
+        if (type === 'Commute') {
+            this._rerenderBody();
+        } else {
+            document.querySelectorAll('.wiz-preset[data-type]').forEach(b => {
+                b.classList.toggle('active', this._data.extraActivities.includes(b.dataset.type));
+            });
+            requestAnimationFrame(() => this._drawPreview());
+        }
+    },
+
+    _pickCommuteH(event, dir) {
+        event.stopPropagation();
+        const key = dir === 'To' ? 'commuteToWorkH' : 'commuteFromWorkH';
+        const items = Array.from({ length: 5 }, (_, i) => ({ val: i, label: String(i) }));
+        this._openPicker(event, items, this._data[key], val => {
+            this._data[key] = val; this._rerenderBody();
+        });
+    },
+
+    _pickCommuteM(event, dir) {
+        event.stopPropagation();
+        const key = dir === 'To' ? 'commuteToWorkM' : 'commuteFromWorkM';
+        const items = Array.from({ length: 12 }, (_, i) => ({ val: i * 5, label: String(i * 5).padStart(2,'0') }));
+        this._openPicker(event, items, this._data[key], val => {
+            this._data[key] = val; this._rerenderBody();
         });
     },
 
@@ -946,7 +1064,7 @@ const Wizard = {
         State.targets.totalM = d.sleepGoodM;
         State.targets.perVal = 1;
 
-        // Work activity — apply hours from wizard data
+        // Work activity
         const workFrom = d.shiftHoursType === 'same' && d.shiftHourPatterns[0]
             ? d.shiftHourPatterns[0].from
             : d.shiftDetailEntries[0]?.from;
@@ -965,15 +1083,21 @@ const Wizard = {
         };
         d.extraActivities.forEach(type => {
             if (type === 'Commute') {
-                const work = State.activities.find(a => a.type === 'Work');
+                const work    = State.activities.find(a => a.type === 'Work');
+                const toMins   = d.commuteToWorkH   * 60 + d.commuteToWorkM;
+                const fromMins = d.commuteFromWorkH * 60 + d.commuteFromWorkM;
                 if (work) {
-                    const wFrom = Utils.timeToMins(work.from), wTo = Utils.timeToMins(work.to);
+                    const wFrom = Utils.timeToMins(work.from);
+                    const wTo   = Utils.timeToMins(work.to);
                     State.activities.push(
-                        { id: Date.now(),     name: 'Commute', color: '#f97316', type: 'Commute', start: State.viewStart.toISODate(), from: Utils.minsToTime(wFrom - 30), to: work.from,            freq: 1, dur: 7, forever: true },
-                        { id: Date.now() + 1, name: 'Commute', color: '#f97316', type: 'Commute', start: State.viewStart.toISODate(), from: work.to, to: Utils.minsToTime(wTo + 30),               freq: 1, dur: 7, forever: true }
+                        { id: Date.now(),     name: 'Commute to work',   color: '#f97316', type: 'Commute', start: State.viewStart.toISODate(), from: Utils.minsToTime((wFrom - toMins   + 1440) % 1440), to: work.from,                                     freq: 1, dur: 7, forever: true },
+                        { id: Date.now() + 1, name: 'Commute from work', color: '#f97316', type: 'Commute', start: State.viewStart.toISODate(), from: work.to,                                             to: Utils.minsToTime((wTo   + fromMins + 1440) % 1440), freq: 1, dur: 7, forever: true }
                     );
                 } else {
-                    State.activities.push({ id: Date.now(), name: 'Commute', color: '#f97316', type: 'Commute', start: State.viewStart.toISODate(), from: '08:30', to: '09:00', freq: 1, dur: 7, forever: true });
+                    State.activities.push(
+                        { id: Date.now(),     name: 'Commute to work',   color: '#f97316', type: 'Commute', start: State.viewStart.toISODate(), from: Utils.minsToTime((9*60  - toMins   + 1440) % 1440), to: '09:00', freq: 1, dur: 7, forever: true },
+                        { id: Date.now() + 1, name: 'Commute from work', color: '#f97316', type: 'Commute', start: State.viewStart.toISODate(), from: '17:00', to: Utils.minsToTime((17*60 + fromMins        + 1440) % 1440), freq: 1, dur: 7, forever: true }
+                    );
                 }
             } else {
                 const def = _defs[type];

@@ -30,34 +30,55 @@ function renderAnalytics() {
         debtR:   debts.rem     / State.totalDays * t.perVal,
     };
 
-    const band = (periodHtml, ttgt, rtgt, ta, ra, td, rd, bold) => `
-        <div class="stats-band-group">
-            <div class="period-cell" style="display:grid; grid-template-columns:50px auto; align-items:center; justify-content:center; gap:4px;">${periodHtml}</div>
-            <div class="band-row band-total">
-                <div class="type-cell">total</div>
-                <div class="metric-cell">${ttgt}</div>
-                <div class="metric-cell">${renderDataValue(ta, 'var(--text)', bold)}</div>
-                <div class="metric-cell">${renderDataValue(td, tColor, bold)}</div>
-            </div>
-            <div class="band-row band-rem">
-                <div class="type-cell">REM</div>
-                <div class="metric-cell">${rtgt}</div>
-                <div class="metric-cell">${renderDataValue(ra, 'var(--text)', bold)}</div>
-                <div class="metric-cell">${renderDataValue(rd, rColor, bold)}</div>
-            </div>
-        </div>`;
+    const perStepper = Utils.stepper(t.perVal,
+        `Actions.stepTarget('perVal',1)`, `Actions.stepTarget('perVal',-1)`,
+        'day', v => Actions.setTarget('perVal', v));
 
-    document.getElementById('stats-body').innerHTML =
-        band(
-            `${Utils.stepper(t.perVal, `Actions.stepTarget('perVal',1)`, `Actions.stepTarget('perVal',-1)`, 'day', v => Actions.setTarget('perVal', v))}<span class="sub-label-dim">days</span>`,
-            renderTargetValue('totalH', 'totalM', 'total-hour'),
-            renderTargetValue('remH',   'remM',   'rem-hour'),
-            avg.actualT, avg.actualR, avg.debtT, avg.debtR, true
-        ) +
-        band(
-            `<span class="sub-text" style="text-align:center;">${State.totalDays}</span><span class="sub-label-dim">days</span>`,
-            renderDataValue(targets.total, 'var(--text)', false),
-            renderDataValue(targets.rem,   C_REM,         false),
-            actuals.total, actuals.rem, debts.total, debts.rem, false
-        );
+    document.getElementById('stats-body').innerHTML = `
+        <table class="an-table">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th colspan="2" class="an-period-hdr">
+                        <div class="an-period-stepper">${perStepper}<span class="sub-label-dim">days</span></div>
+                    </th>
+                    <th colspan="2" class="an-period-hdr">
+                        <div class="an-period-stepper">
+                            <span class="sub-text">${State.totalDays}</span>
+                            <span class="sub-label-dim">days total</span>
+                        </div>
+                    </th>
+                </tr>
+                <tr>
+                    <th></th>
+                    <th class="an-type-hdr an-total">Sleep</th>
+                    <th class="an-type-hdr an-rem">REM</th>
+                    <th class="an-type-hdr an-total">Sleep</th>
+                    <th class="an-type-hdr an-rem">REM</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th class="an-metric-lbl">Target</th>
+                    <td>${renderTargetValue('totalH', 'totalM', 'total-hour')}</td>
+                    <td>${renderTargetValue('remH', 'remM', 'rem-hour')}</td>
+                    <td>${renderDataValue(targets.total, 'var(--text)', false)}</td>
+                    <td>${renderDataValue(targets.rem, C_REM, false)}</td>
+                </tr>
+                <tr>
+                    <th class="an-metric-lbl">Actual</th>
+                    <td>${renderDataValue(avg.actualT, 'var(--text)', true)}</td>
+                    <td>${renderDataValue(avg.actualR, 'var(--text)', true)}</td>
+                    <td>${renderDataValue(actuals.total, 'var(--text)', false)}</td>
+                    <td>${renderDataValue(actuals.rem, 'var(--text)', false)}</td>
+                </tr>
+                <tr>
+                    <th class="an-metric-lbl">Debt</th>
+                    <td>${renderDataValue(avg.debtT, tColor, true)}</td>
+                    <td>${renderDataValue(avg.debtR, rColor, true)}</td>
+                    <td>${renderDataValue(debts.total, tColor, false)}</td>
+                    <td>${renderDataValue(debts.rem, rColor, false)}</td>
+                </tr>
+            </tbody>
+        </table>`;
 }

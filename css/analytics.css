@@ -1,3 +1,4 @@
+/* Legacy band layout (kept for compatibility) */
 .stats-sub-header { display: grid; grid-template-columns: 120px 45px 1fr 1fr 1fr; align-items: center; min-width: 700px; border-bottom: 1px solid var(--border); }
 .stats-sub-header .period-cell { align-self: stretch; }
 .stats-band-group { display: grid; grid-template-columns: 120px 1fr; border-bottom: 1px solid var(--border); min-width: 700px; }
@@ -19,3 +20,14 @@
 .sr-val { font-size: 0.7rem; font-weight: bold; text-align: right; font-variant-numeric: tabular-nums; }
 .target-subrow { display: grid; grid-template-columns: 50px 14px 50px 14px; align-items: center; justify-items: center; padding: 2px 0; gap: 0; }
 .target-subrow .custom-stepper { width: 100%; }
+
+/* Transposed analytics table */
+.an-table { border-collapse: collapse; width: 100%; }
+.an-table th, .an-table td { border: 1px solid var(--border); padding: 5px 8px; vertical-align: middle; }
+.an-period-hdr { background: rgba(255,255,255,0.03); text-align: center; }
+.an-period-stepper { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; }
+.an-type-hdr { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; text-align: center; }
+.an-type-hdr.an-total { background: color-mix(in srgb, var(--c-total) 14%, transparent); color: var(--c-total); }
+.an-type-hdr.an-rem   { background: color-mix(in srgb, var(--c-rem)   11%, transparent); color: var(--c-rem); }
+.an-metric-lbl { font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; text-align: left; white-space: nowrap; }
+.an-table td { text-align: center; }

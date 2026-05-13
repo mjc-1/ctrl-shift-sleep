@@ -24,7 +24,7 @@
 </head>
 <body>
 
-<div id="app-toolbar" style="position:fixed; top:12px; right:12px; z-index:1500; display:flex; gap:4px; align-items:center;">
+<div id="app-toolbar" style="position:fixed; top:50px; right:12px; z-index:1500; display:flex; gap:4px; align-items:center;">
     <label class="intro-reload-label" style="margin-right:6px;">Show intro on reload <input type="checkbox" id="intro-on-reload"></label>
     <button class="btn-tool" onclick="History.undo()" title="Undo (Ctrl+Z)" style="font-size:0.75rem; padding:3px 8px;">↩</button>
     <button class="btn-tool" onclick="History.redo()" title="Redo (Ctrl+Y)" style="font-size:0.75rem; padding:3px 8px;">↪</button>
@@ -48,20 +48,6 @@
         <div class="column" id="col-activities">
             <div class="col-content">
                 <table class="act-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 120px;"><span class="th-inner">Activity</span></th>
-                            <th style="width: 130px;"><span class="th-inner">From</span></th>
-                            <th style="width: 130px;"><span class="th-inner">To</span></th>
-                            <th style="width: 80px;"><span class="th-inner">Length</span></th>
-                            <th style="width: 100px;"><span class="th-inner">Every</span></th>
-                            <th style="width: 130px;"><span class="th-inner">Starting</span></th>
-                            <th style="width: 60px;"><span class="th-inner">Forever</span></th>
-                            <th style="width: 130px;"><span class="th-inner">Ending</span></th>
-                            <th style="width: 60px;"><span class="th-inner">Span</span></th>
-                            <th style="width: 60px;"><span class="th-inner">Remove</span></th>
-                        </tr>
-                    </thead>
                     <tbody id="activity-list"></tbody>
                 </table>
             </div>
@@ -94,17 +80,6 @@
     <div id="tab-analytics" class="tab-panel active">
         <div class="column" id="col-analytics">
             <div class="col-content">
-                <div style="display:grid; grid-template-columns: 120px 1fr; min-width:700px; align-items:end; padding-bottom:4px; border-bottom: 1px solid var(--border);">
-                    <div style="font-size:0.6rem; color:#94a3b8; text-transform:uppercase; text-align:center; padding-bottom:4px; border-right: 1px solid var(--border);">Time Period</div>
-                    <div style="text-align:center; font-size:0.7rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; padding-bottom:4px;">Sleep</div>
-                </div>
-                <div class="stats-sub-header" style="padding-top:4px; padding-bottom:0;">
-                    <div class="period-cell"></div>
-                    <div></div>
-                    <div style="border-left:1px solid var(--border); padding: 0 8px;"><span style="display:block; text-align:center; font-size:0.6rem; color:#94a3b8; text-transform:uppercase; padding-bottom:8px;">Target</span></div>
-                    <div style="border-left:1px solid var(--border); padding: 0 8px;"><span style="display:block; text-align:center; font-size:0.6rem; color:#94a3b8; text-transform:uppercase; padding-bottom:8px;">Actual (expected)</span></div>
-                    <div style="border-left:1px solid var(--border); padding: 0 8px;"><span style="display:block; text-align:center; font-size:0.6rem; color:#94a3b8; text-transform:uppercase; padding-bottom:8px;">Debt (expected)</span></div>
-                </div>
                 <div id="stats-body"></div>
             </div>
         </div>

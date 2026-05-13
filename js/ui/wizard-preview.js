@@ -1,6 +1,7 @@
 const WizardPreview = {
-    _WORK_COLOR:  '#fbbf24',
-    _SLEEP_COLOR: '#818cf8',
+    _WORK_COLOR:    '#fbbf24',
+    _SLEEP_COLOR:   '#818cf8',
+    _COMMUTE_COLOR: '#f97316',
 
     draw(canvas, data) {
         const dpr = window.devicePixelRatio || 1;
@@ -97,6 +98,36 @@ const WizardPreview = {
             ctx.fill();
         });
         ctx.globalAlpha = 1;
+
+        // Commute bars (shown adjacent to work bars when Commute is selected)
+        if (data.extraActivities?.includes('Commute')) {
+            const toMins   = (data.commuteToWorkH   || 0) * 60 + (data.commuteToWorkM   || 0);
+            const fromMins = (data.commuteFromWorkH || 0) * 60 + (data.commuteFromWorkM || 0);
+            ctx.globalAlpha = 0.78;
+            ctx.fillStyle = this._COMMUTE_COLOR;
+            days.forEach((day, i) => {
+                if (!day.isWork) return;
+                const colX = PL + i * dayW;
+                if (hoursKnown && day.workFrom !== null && day.workTo !== null) {
+                    if (toMins > 0) {
+                        const commStart = ((day.workFrom - toMins) % 1440 + 1440) % 1440;
+                        const bx = colX + (commStart / 1440) * dayW;
+                        const bw = Math.max(2, (toMins / 1440) * dayW);
+                        this._bar(ctx, bx, WORK_Y, bw, WORK_BAR_H); ctx.fill();
+                    }
+                    if (fromMins > 0) {
+                        const bx = colX + (day.workTo / 1440) * dayW;
+                        const bw = Math.max(2, (fromMins / 1440) * dayW);
+                        this._bar(ctx, bx, WORK_Y, bw, WORK_BAR_H); ctx.fill();
+                    }
+                } else {
+                    const bw = Math.max(3, dayW * 0.12);
+                    this._bar(ctx, colX + 1, WORK_Y, bw, WORK_BAR_H); ctx.fill();
+                    this._bar(ctx, colX + dayW - 1 - bw, WORK_Y, bw, WORK_BAR_H); ctx.fill();
+                }
+            });
+            ctx.globalAlpha = 1;
+        }
 
         // Sleep bars
         if (sleep) {
