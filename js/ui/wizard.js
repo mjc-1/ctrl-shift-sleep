@@ -5,6 +5,7 @@ const Wizard = {
     _lastStep: null,
     _swipeAttached: false,
     _direction: null,
+    _lastPreviewStage: -1,
 
     _defaultData() {
         return {
@@ -30,8 +31,9 @@ const Wizard = {
             customActivities: [],
             commuteToWorkH: 0,   commuteToWorkM: 30,
             commuteFromWorkH: 0, commuteFromWorkM: 30,
-            days: 14,
+            days: 7,
             sleepNeedsSet: false,
+            showDebtGraph: false,
         };
     },
 
@@ -312,7 +314,7 @@ const Wizard = {
 
         // 9 — Planning horizon
         {
-            title: 'Planning horizon',
+            title: 'How far ahead?',
             subtitle: 'How many days would you like to plan?',
             render(data) {
                 const presets = [7, 14, 28, 90];
@@ -334,6 +336,36 @@ const Wizard = {
                 return (v >= 1 && v <= 365) ? v : null;
             },
             save(val, data) { data.days = val; },
+        },
+
+        // 10 — Evaluation
+        {
+            title: 'Your plan looks…',
+            subtitle: '',
+            isEvalStep: true,
+            render(data) {
+                data.showDebtGraph = true;
+                const ev = Wizard._evalDescription(data);
+                return `
+                    <div class="wiz-eval-badge">${ev.badge}</div>
+                    <p class="wiz-eval-text">${ev.text}</p>
+                `;
+            },
+            validate() { return {}; },
+            save(val, data) { data.showDebtGraph = true; },
+        },
+
+        // 11 — Suggestions
+        {
+            title: 'You might want to try…',
+            subtitle: '',
+            render(data) {
+                const rows = Wizard._buildSuggestions(data)
+                    .map(s => `<div class="wiz-suggestion">${s}</div>`).join('');
+                return `<div class="wiz-suggestions">${rows}</div>`;
+            },
+            validate() { return {}; },
+            save() {},
         },
     ],
 
@@ -448,6 +480,7 @@ const Wizard = {
                 </div>
                 <div id="wiz-content"></div>
                 <div id="wiz-preview-area" class="wiz-preview">
+                    <canvas id="wiz-debt-canvas"    class="wiz-debt-canvas"    style="display:none;"></canvas>
                     <canvas id="wiz-preview-canvas" class="wiz-preview-canvas"></canvas>
                 </div>
             `;
@@ -457,9 +490,13 @@ const Wizard = {
         const dotsArea = document.getElementById('wiz-dots-area');
         if (dotsArea) dotsArea.innerHTML = dots;
 
-        // Show/hide preview area
+        // Show/hide preview area and debt canvas
         const previewArea = document.getElementById('wiz-preview-area');
         if (previewArea) previewArea.style.display = showPreview ? '' : 'none';
+        const evalIdx = this._steps.findIndex(s => s.isEvalStep);
+        const showDebt = evalIdx >= 0 && this._step >= evalIdx;
+        const debtCanvas = document.getElementById('wiz-debt-canvas');
+        if (debtCanvas) debtCanvas.style.display = showDebt ? 'block' : 'none';
 
         // Replace only the step content
         const contentEl = document.getElementById('wiz-content');
@@ -469,12 +506,6 @@ const Wizard = {
             <h2 class="wiz-title"  style="${d(0)}">${step.title}</h2>
             ${hasSub ? `<p class="wiz-subtitle" style="${d(100)}">${step.subtitle}</p>` : ''}
             <div class="wiz-body"  style="${d(hasSub ? 260 : 140)}">${step.render(this._data)}</div>
-            <div class="wiz-nav"   style="${d(hasSub ? 440 : 320)}">
-                <div style="display:flex; gap:14px;">
-                    ${!isLast ? `<button class="wiz-btn-skip" onclick="Wizard._skipStep()">Skip this step</button>` : ''}
-                    <button class="wiz-btn-skip" onclick="Wizard._skip()">Skip all</button>
-                </div>
-            </div>
         `;
 
         // Apply directional slide-in animation
@@ -510,8 +541,29 @@ const Wizard = {
     },
 
     _drawPreview() {
+        if (typeof WizardPreview === 'undefined') return;
+        const d = this._data;
+
+        // Stage chime — play a soft tone when a new visual element appears
+        const stage =
+            d.sleepNeedsSet                        ? 6 :
+            d.onsetType                            ? 5 :
+            (d.bedtimeType && d.wakeType)          ? 4 :
+            d.bedtimeType                          ? 3 :
+            (d.shiftDaysType && d.shiftHoursType)  ? 2 :
+            d.shiftDaysType                        ? 1 : 0;
+        if (stage > this._lastPreviewStage) {
+            this._lastPreviewStage = stage;
+            const freqs = [0, 440, 554, 659, 784, 880, 1047];
+            if (typeof FireSound !== 'undefined' && freqs[stage])
+                FireSound.chime(freqs[stage], 0.18, 0.03);
+        }
+
         const canvas = document.getElementById('wiz-preview-canvas');
-        if (canvas && typeof WizardPreview !== 'undefined') WizardPreview.draw(canvas, this._data);
+        if (canvas) WizardPreview.draw(canvas, d);
+
+        const debtCanvas = document.getElementById('wiz-debt-canvas');
+        if (debtCanvas && debtCanvas.style.display !== 'none') WizardPreview.drawDebt(debtCanvas, d);
     },
 
     // ── Navigation ────────────────────────────────────────────────────────
@@ -1129,6 +1181,85 @@ const Wizard = {
             b.classList.toggle('active', parseInt(b.dataset.days) === n);
         });
         requestAnimationFrame(() => this._drawPreview());
+    },
+
+    // ── Evaluation helpers ────────────────────────────────────────────────
+
+    _evalDescription(data) {
+        const sleep = WizardPreview._buildSleep(data);
+        if (!sleep || !data.sleepNeedsSet) {
+            return { badge: '—', text: 'Complete the earlier steps to see your evaluation.' };
+        }
+        const onsetDur    = data.onsetType === 'fixed' ? (data.onsetH || 0) * 60 + (data.onsetM || 0) : 0;
+        const rawSleep    = (sleep.to - sleep.from + 1440) % 1440;
+        const actualSleep = Math.max(0, rawSleep - onsetDur);
+        const targetSleep = (data.sleepGoodH || 8) * 60 + (data.sleepGoodM || 0);
+        const daily       = targetSleep - actualSleep; // positive = in debt
+
+        if (daily <= -30)  return { badge: 'Great!',         text: "You're getting more than enough sleep — a small surplus to draw on." };
+        if (daily <= 5)    return { badge: 'Pretty good',    text: "You're just about hitting your sleep target most nights." };
+        if (daily <= 25)   return { badge: 'Manageable',     text: "A small nightly shortfall that may add up across the week." };
+        if (daily <= 50)   return { badge: 'Kinda tough',    text: "You'll accumulate a noticeable sleep debt — weekends may need to make up the difference." };
+        if (daily <= 90)   return { badge: 'Tough',          text: "A significant nightly shortfall. Consider adjusting bedtime or work hours." };
+        return               { badge: 'Unmanageable',     text: "This schedule doesn't leave enough time for adequate sleep. Something needs to change." };
+    },
+
+    _buildSuggestions(data) {
+        const sleep = WizardPreview._buildSleep(data);
+        if (!sleep) return ['Complete the earlier steps to see personalised suggestions.'];
+
+        const onsetDur    = data.onsetType === 'fixed' ? (data.onsetH || 0) * 60 + (data.onsetM || 0) : 0;
+        const rawSleep    = (sleep.to - sleep.from + 1440) % 1440;
+        const actualSleep = Math.max(0, rawSleep - onsetDur);
+        const targetSleep = (data.sleepGoodH || 8) * 60 + (data.sleepGoodM || 0);
+        const daily       = targetSleep - actualSleep;
+
+        if (daily <= 0) return ['✅ Your sleep schedule looks good. Keep regular sleep and wake times for best results.'];
+
+        const suggestions = [];
+        const bedH = Math.floor(sleep.from / 60);
+        const bedM = sleep.from % 60;
+        const earlyBed = (sleep.from - 45 + 1440) % 1440;
+        const earlyStr = `${String(Math.floor(earlyBed/60)).padStart(2,'0')}:${String(earlyBed%60).padStart(2,'0')}`;
+
+        // Find the day in the pattern with the earliest shift start (= most sleep pressure)
+        const pattern = WizardPreview._buildDays(data);
+        const workDays = pattern.filter(d => d.isWork && d.workFrom !== null);
+        if (workDays.length > 0) {
+            const earliest = workDays.reduce((a, b) => a.workFrom < b.workFrom ? a : b);
+            const dayName  = earliest.label;
+            const shiftH   = String(Math.floor(earliest.workFrom / 60)).padStart(2,'0');
+            const shiftM   = String(earliest.workFrom % 60).padStart(2,'0');
+            suggestions.push(`😴 Try going to bed around ${earlyStr} on ${dayName} nights — your ${shiftH}:${shiftM} shift means every minute counts`);
+        } else {
+            suggestions.push(`😴 Try going to bed around ${earlyStr} — even 45 minutes earlier helps`);
+        }
+
+        // Nap suggestion: find gap between wake and first work, or between work end and bedtime
+        const wakeM = sleep.to;
+        const napStart = (wakeM + 60) % 1440; // 1 hour after wake
+        const napH = Math.floor(napStart / 60);
+        const napM = napStart % 60;
+        const napStr = `${String(napH).padStart(2,'0')}:${String(napM).padStart(2,'0')}`;
+
+        if (workDays.length > 0) {
+            const firstShift = workDays.reduce((a, b) => a.workFrom < b.workFrom ? a : b);
+            const gapMins    = (firstShift.workFrom - wakeM + 1440) % 1440;
+            if (gapMins >= 120) {
+                suggestions.push(`🛋️ A 20–90 minute nap around ${napStr} before your shift could offset the shortfall`);
+            } else {
+                // Suggest evening nap between shift end and bedtime
+                const workEndDay = workDays.reduce((a, b) => a.workTo > b.workTo ? a : b);
+                const midGap = Math.floor(((workEndDay.workTo + sleep.from) % 1440 + (workEndDay.workTo < sleep.from ? 0 : 1440)) / 2) % 1440;
+                const mgH = String(Math.floor(midGap/60)).padStart(2,'0');
+                const mgM = String(midGap%60).padStart(2,'0');
+                suggestions.push(`🛋️ A short nap (20–30 min) around ${mgH}:${mgM} after work may ease the shortfall`);
+            }
+        } else {
+            suggestions.push(`🛋️ A 20–90 minute nap around ${napStr} can help when you're running a deficit`);
+        }
+
+        return suggestions;
     },
 
     // ── Finish ────────────────────────────────────────────────────────────
