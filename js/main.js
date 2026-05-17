@@ -8,7 +8,7 @@ UI.initImageButtons();
 UI.loadAppearance();
 History.init();
 ChartEngine.refreshZoom();
-Wizard.maybeShow();
+Wizard.show();
 
 // Intro-on-reload checkbox
 document.getElementById('intro-on-reload')?.addEventListener('change', e => {
@@ -47,20 +47,3 @@ document.getElementById('scroll-engine').addEventListener('wheel', e => {
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) { e.preventDefault(); e.currentTarget.scrollLeft += e.deltaX; }
 }, { passive: false });
 
-// Swipe on main content to navigate between tabs
-(function () {
-    let sx = 0, sy = 0;
-    const mc = document.getElementById('main-content');
-    if (!mc) return;
-    const TABS = ['activities', 'analytics', 'graph'];
-    mc.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
-    mc.addEventListener('touchend', e => {
-        const dx = e.changedTouches[0].clientX - sx;
-        const dy = e.changedTouches[0].clientY - sy;
-        if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
-        const cur = document.querySelector('.tab-btn.active')?.dataset.tab || 'analytics';
-        const idx = TABS.indexOf(cur);
-        if (dx < 0 && idx < TABS.length - 1) UI.switchTab(TABS[idx + 1]);
-        else if (dx > 0 && idx > 0)          UI.switchTab(TABS[idx - 1]);
-    }, { passive: true });
-})();

@@ -5,6 +5,16 @@ const WizardPreview = {
     _COMMUTE_COLOR: '#f97316',
 
     draw(canvas, data) {
+        // Set canvas CSS width based on planning horizon (item 6/8)
+        const MIN_DAY_W = 40;
+        const containerW = canvas.parentElement ? canvas.parentElement.clientWidth : 0;
+        const numDays = (data.days && data.days > 0) ? data.days : 14;
+        const days = this._buildDisplayDays(data, numDays);
+        const targetW = days.length > 0
+            ? Math.max(containerW, days.length * MIN_DAY_W)
+            : containerW || 200;
+        canvas.style.width = targetW + 'px';
+
         const dpr = window.devicePixelRatio || 1;
         const W   = canvas.offsetWidth;
         const H   = canvas.offsetHeight;
@@ -16,11 +26,11 @@ const WizardPreview = {
         ctx.scale(dpr, dpr);
         ctx.clearRect(0, 0, W, H);
 
-        const PL = 6, PR = 6, PT = 6, PB = 18;
+        const bedtimeMins = this._buildBedtime(data);
+        const PT_LABEL = 26;  // extra top padding when bedtime label is shown
+        const PL = 6, PR = 6, PT = bedtimeMins !== null ? PT_LABEL : 6, PB = 18;
         const cW = W - PL - PR;
         const cH = H - PT - PB;
-
-        const days = this._buildDays(data);
 
         if (!days.length) {
             ctx.fillStyle = 'rgba(255,255,255,0.18)';
@@ -35,7 +45,6 @@ const WizardPreview = {
         const dayW = cW / N;
         const hoursKnown  = this._hoursKnown(data);
         const sleep       = this._buildSleep(data);
-        const bedtimeMins = this._buildBedtime(data);
 
         const BAR_H = Math.floor(cH * 0.40);
         const BAR_Y = PT + Math.floor((cH - BAR_H) / 2);
@@ -99,7 +108,7 @@ const WizardPreview = {
         });
         ctx.globalAlpha = 1;
 
-        // Commute bars (adjacent to work bars)
+        // Commute bars
         if (data.extraActivities?.includes('Commute')) {
             const toMins   = (data.commuteToWorkH   || 0) * 60 + (data.commuteToWorkM   || 0);
             const fromMins = (data.commuteFromWorkH || 0) * 60 + (data.commuteFromWorkM || 0);
@@ -150,21 +159,7 @@ const WizardPreview = {
             ctx.globalAlpha = 1;
         }
 
-        // Bedtime vertical line — as soon as bedtime is known
-        if (bedtimeMins !== null) {
-            ctx.strokeStyle = 'rgba(129,140,248,0.75)';
-            ctx.lineWidth = 1.5;
-            days.forEach((_, i) => {
-                const colX = PL + i * dayW;
-                const lx = Math.round(colX + (bedtimeMins / 1440) * dayW) + 0.5;
-                ctx.beginPath();
-                ctx.moveTo(lx, BAR_Y);
-                ctx.lineTo(lx, BAR_Y + BAR_H);
-                ctx.stroke();
-            });
-        }
-
-        // Onset bar — as soon as bedtime and onset are known; fully opaque to conceal sleep bar beneath
+        // Onset bar — fully opaque to conceal sleep bar beneath
         if (bedtimeMins !== null && data.onsetType === 'fixed') {
             const onsetDur = (data.onsetH || 0) * 60 + (data.onsetM || 0);
             if (onsetDur > 0) {
@@ -178,32 +173,54 @@ const WizardPreview = {
             }
         }
 
-        // RAG sleep-need bands — thin horizontal bands stacked ABOVE the sleep bar
-        // Order bottom-to-top: red (bare), amber (ok), green (good) — "red lowest"
+        // RAG sleep-need bands above bar — start after onset ends (item 10)
         if (bedtimeMins !== null && data.sleepNeedsSet) {
+            const onsetDur = data.onsetType === 'fixed'
+                ? (data.onsetH || 0) * 60 + (data.onsetM || 0) : 0;
+            const startMins = bedtimeMins + onsetDur;
             const ragBands = [
-                { dur: (data.sleepGoodH || 0) * 60 + (data.sleepGoodM || 0), color: '#22c55ecc', row: 0 }, // green, topmost
-                { dur: (data.sleepOkH   || 0) * 60 + (data.sleepOkM   || 0), color: '#f59e0bcc', row: 1 }, // amber
-                { dur: (data.sleepBareH || 0) * 60 + (data.sleepBareM || 0), color: '#ef4444cc', row: 2 }, // red, just above bar
+                { dur: (data.sleepGoodH || 0) * 60 + (data.sleepGoodM || 0), color: '#22c55ecc', row: 0 },
+                { dur: (data.sleepOkH   || 0) * 60 + (data.sleepOkM   || 0), color: '#f59e0bcc', row: 1 },
+                { dur: (data.sleepBareH || 0) * 60 + (data.sleepBareM || 0), color: '#ef4444cc', row: 2 },
             ];
             ragBands.forEach(({ dur, color, row }) => {
                 if (dur <= 0) return;
-                // row 0 = topmost (BAR_Y - 3*RAG_H), row 2 = closest to bar (BAR_Y - RAG_H)
                 const bandY = BAR_Y - RAG_H * (3 - row);
                 ctx.fillStyle = color;
+                const s = startMins % 1440;
                 days.forEach((_, i) => {
                     const colX = PL + i * dayW;
-                    const fromX = colX + (bedtimeMins / 1440) * dayW;
-                    const endMins = bedtimeMins + dur;
-                    if (endMins <= 1440) {
+                    const fromX = colX + (s / 1440) * dayW;
+                    const endAbs = s + dur;
+                    if (endAbs <= 1440) {
                         ctx.fillRect(fromX, bandY, Math.max(2, (dur / 1440) * dayW), RAG_H);
                     } else {
-                        // evening part (to midnight)
-                        ctx.fillRect(fromX, bandY, Math.max(1, ((1440 - bedtimeMins) / 1440) * dayW), RAG_H);
-                        // morning part (from midnight)
-                        ctx.fillRect(colX, bandY, Math.max(1, ((endMins % 1440) / 1440) * dayW), RAG_H);
+                        ctx.fillRect(fromX, bandY, Math.max(1, ((1440 - s) / 1440) * dayW), RAG_H);
+                        ctx.fillRect(colX, bandY, Math.max(1, ((endAbs % 1440) / 1440) * dayW), RAG_H);
                     }
                 });
+            });
+        }
+
+        // Bedtime 45° label with 🛏 icon — every 7 columns (item 9)
+        if (bedtimeMins !== null) {
+            const bedH = Math.floor(bedtimeMins / 60);
+            const bedM = bedtimeMins % 60;
+            const timeLabel = `🛏 ${String(bedH).padStart(2,'0')}:${String(bedM).padStart(2,'0')}`;
+            ctx.font = '8px system-ui, sans-serif';
+            ctx.fillStyle = 'rgba(129,140,248,0.9)';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+            const labelStep = Math.max(1, Math.round(7 * MIN_DAY_W / dayW));
+            days.forEach((_, i) => {
+                if (i % labelStep !== 0) return;
+                const colX = PL + i * dayW;
+                const lx = colX + (bedtimeMins / 1440) * dayW;
+                ctx.save();
+                ctx.translate(lx, PT - 2);
+                ctx.rotate(-Math.PI / 4);
+                ctx.fillText(timeLabel, 0, 0);
+                ctx.restore();
             });
         }
     },
@@ -274,6 +291,17 @@ const WizardPreview = {
         }
 
         return [];
+    },
+
+    // Tiles the base pattern to cover numDays total days (item 6)
+    _buildDisplayDays(data, numDays) {
+        const pattern = this._buildDays(data);
+        if (!pattern.length) return [];
+        const result = [];
+        for (let i = 0; i < numDays; i++) {
+            result.push(pattern[i % pattern.length]);
+        }
+        return result;
     },
 
     _buildSleep(data) {

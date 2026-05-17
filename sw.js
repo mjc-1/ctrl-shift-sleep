@@ -1,9 +1,9 @@
-const CACHE = 'sleep-planner-v8';
+const CACHE = 'sleep-planner-v9';
 const ASSETS = [
     './', './index.html',
     './css/variables.css', './css/base.css', './css/table.css', './css/stepper.css',
     './css/analytics.css', './css/chart.css', './css/controls.css',
-    './js/state.js', './js/history.js', './js/main.js',
+    './js/state.js', './js/history.js', './js/fire-sound.js', './js/main.js',
     './js/utils/format.js', './js/utils/time.js', './js/utils/stepper.js', './js/utils/index.js',
     './js/actions/activities.js', './js/actions/time.js', './js/actions/fields.js',
     './js/actions/targets.js', './js/actions/persist.js', './js/actions/view.js',

@@ -5,3 +5,4 @@ const UI = {
     sync: syncUI,
     renderAnalytics,
 };
+

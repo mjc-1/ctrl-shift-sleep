@@ -217,7 +217,11 @@ const Wizard = {
                     { label: 'getting<br>by',         hKey: 'sleepOkH',   mKey: 'sleepOkM'   },
                     { label: 'comfortable',           hKey: 'sleepGoodH', mKey: 'sleepGoodM' },
                 ];
-                const cells = cols.map(c => `
+                const cells = cols.map(c => {
+                    const wMins = (data[c.hKey] * 60 + data[c.mKey]) * 7;
+                    const wH = Math.floor(wMins / 60), wM = wMins % 60;
+                    const wkStr = `${wH}h${wM ? ' ' + wM + 'm' : ''} / week`;
+                    return `
                     <div class="wiz-sleep-col">
                         <div class="wiz-sleep-col-label">${c.label}</div>
                         <div class="wiz-sleep-pickers">
@@ -226,13 +230,10 @@ const Wizard = {
                             <button class="wiz-val-btn" onclick="Wizard._pickNeedM(event,'${c.mKey}')">${data[c.mKey]}</button>
                             <span class="wiz-unit">m</span>
                         </div>
-                    </div>`).join('');
-                const wMins = (data.sleepGoodH * 60 + data.sleepGoodM) * 7;
-                const wkH = Math.floor(wMins / 60), wkM = wMins % 60;
-                return `
-                    <div class="wiz-sleep-cols">${cells}</div>
-                    <p class="wiz-weekly" id="wiz-weekly">Comfortable: ${wkH}h${wkM ? ' ' + wkM + 'm' : ''} per week.</p>
-                `;
+                        <div class="wiz-sleep-weekly">${wkStr}</div>
+                    </div>`;
+                }).join('');
+                return `<div class="wiz-sleep-cols">${cells}</div>`;
             },
             validate() {
                 const d = Wizard._data;
@@ -296,7 +297,7 @@ const Wizard = {
                     ${commuteInputs}
                     ${customRows}
                     <div style="margin-top:10px;">
-                        <button class="wiz-preset" onclick="Wizard._addCustom()">✏️ Something else</button>
+                        <button class="wiz-preset" onclick="Wizard._addCustom()">✏️ Other</button>
                     </div>
                 `;
             },
@@ -374,12 +375,16 @@ const Wizard = {
         });
         if (!this._swipeAttached) {
             this._swipeAttached = true;
-            let sx = 0, sy = 0;
+            let sx = 0, sy = 0, _ignoreSwipe = false;
             overlay.addEventListener('touchstart', e => {
+                const previewArea = document.getElementById('wiz-preview-area');
+                if (previewArea && previewArea.contains(e.target)) { _ignoreSwipe = true; return; }
+                _ignoreSwipe = false;
                 sx = e.touches[0].clientX;
                 sy = e.touches[0].clientY;
             }, { passive: true });
             overlay.addEventListener('touchend', e => {
+                if (_ignoreSwipe) { _ignoreSwipe = false; return; }
                 const dx = e.changedTouches[0].clientX - sx;
                 const dy = e.changedTouches[0].clientY - sy;
                 if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
@@ -438,6 +443,8 @@ const Wizard = {
                 <div id="wiz-logo-area" class="wiz-logo-wrap" ${logoStyle}>
                     <img src="icons/logo.png" class="wiz-logo" alt="" loading="eager"
                          onerror="this.closest('#wiz-logo-area').style.display='none'">
+                    <div class="wiz-app-name">control shift sleep</div>
+                    <div id="wiz-dots-area" class="wiz-dots wiz-dots-logo"></div>
                 </div>
                 <div id="wiz-content"></div>
                 <div id="wiz-preview-area" class="wiz-preview">
@@ -445,6 +452,10 @@ const Wizard = {
                 </div>
             `;
         }
+
+        // Update dots in logo area
+        const dotsArea = document.getElementById('wiz-dots-area');
+        if (dotsArea) dotsArea.innerHTML = dots;
 
         // Show/hide preview area
         const previewArea = document.getElementById('wiz-preview-area');
@@ -455,11 +466,10 @@ const Wizard = {
         contentEl.style.animation = '';
         contentEl.classList.remove('wiz-slide-in-right', 'wiz-slide-in-left');
         contentEl.innerHTML = `
-            <div class="wiz-dots"  style="${d(0)}">${dots}</div>
-            <h2 class="wiz-title"  style="${d(120)}">${step.title}</h2>
-            ${hasSub ? `<p class="wiz-subtitle" style="${d(220)}">${step.subtitle}</p>` : ''}
-            <div class="wiz-body"  style="${d(hasSub ? 380 : 260)}">${step.render(this._data)}</div>
-            <div class="wiz-nav"   style="${d(hasSub ? 560 : 440)}">
+            <h2 class="wiz-title"  style="${d(0)}">${step.title}</h2>
+            ${hasSub ? `<p class="wiz-subtitle" style="${d(100)}">${step.subtitle}</p>` : ''}
+            <div class="wiz-body"  style="${d(hasSub ? 260 : 140)}">${step.render(this._data)}</div>
+            <div class="wiz-nav"   style="${d(hasSub ? 440 : 320)}">
                 <div style="display:flex; gap:14px;">
                     ${!isLast ? `<button class="wiz-btn-skip" onclick="Wizard._skipStep()">Skip this step</button>` : ''}
                     <button class="wiz-btn-skip" onclick="Wizard._skip()">Skip all</button>
@@ -1118,6 +1128,7 @@ const Wizard = {
         document.querySelectorAll('.wiz-preset[data-days]').forEach(b => {
             b.classList.toggle('active', parseInt(b.dataset.days) === n);
         });
+        requestAnimationFrame(() => this._drawPreview());
     },
 
     // ── Finish ────────────────────────────────────────────────────────────
@@ -1212,22 +1223,17 @@ const Wizard = {
 
         localStorage.setItem('sleepapp_wizard_done', '1');
         localStorage.removeItem('sleepapp_show_on_reload');
-        localStorage.removeItem('sleepapp_wizard_step');
-        localStorage.removeItem('sleepapp_wizard_data');
         const _reloadChk = document.getElementById('intro-on-reload');
         if (_reloadChk) _reloadChk.checked = false;
         UI.sync();
         ChartEngine.refreshZoom();
-        this.hide();
+        this._renderContent(false);
     },
 
     _skip() {
         localStorage.setItem('sleepapp_wizard_done', '1');
         localStorage.removeItem('sleepapp_show_on_reload');
-        localStorage.removeItem('sleepapp_wizard_step');
-        localStorage.removeItem('sleepapp_wizard_data');
         const _reloadChk = document.getElementById('intro-on-reload');
         if (_reloadChk) _reloadChk.checked = false;
-        this.hide();
     },
 };
