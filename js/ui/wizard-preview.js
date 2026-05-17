@@ -33,11 +33,13 @@ const WizardPreview = {
 
         const N    = days.length;
         const dayW = cW / N;
-        const hoursKnown = this._hoursKnown(data);
-        const sleep      = this._buildSleep(data);
+        const hoursKnown  = this._hoursKnown(data);
+        const sleep       = this._buildSleep(data);
+        const bedtimeMins = this._buildBedtime(data);
 
         const BAR_H = Math.floor(cH * 0.40);
         const BAR_Y = PT + Math.floor((cH - BAR_H) / 2);
+        const RAG_H = Math.max(2, Math.floor((BAR_Y - PT) / 3));
 
         // Chart area
         ctx.fillStyle = 'rgba(255,255,255,0.03)';
@@ -139,10 +141,8 @@ const WizardPreview = {
                     const bw = Math.max(2, ((to - from) / 1440) * dayW);
                     ctx.fillRect(bx, BAR_Y, bw, BAR_H);
                 } else {
-                    // crosses midnight — evening part
                     const ew = Math.max(1, ((1440 - from) / 1440) * dayW);
                     ctx.fillRect(colX + (from / 1440) * dayW, BAR_Y, ew, BAR_H);
-                    // morning part
                     const mw = Math.max(1, (to / 1440) * dayW);
                     ctx.fillRect(colX, BAR_Y, mw, BAR_H);
                 }
@@ -150,58 +150,72 @@ const WizardPreview = {
             ctx.globalAlpha = 1;
         }
 
-        // Bedtime vertical line
-        if (sleep) {
-            ctx.strokeStyle = 'rgba(129,140,248,0.7)';
+        // Bedtime vertical line — as soon as bedtime is known
+        if (bedtimeMins !== null) {
+            ctx.strokeStyle = 'rgba(129,140,248,0.75)';
             ctx.lineWidth = 1.5;
             days.forEach((_, i) => {
                 const colX = PL + i * dayW;
-                const lx = Math.round(colX + (sleep.from / 1440) * dayW) + 0.5;
+                const lx = Math.round(colX + (bedtimeMins / 1440) * dayW) + 0.5;
                 ctx.beginPath();
-                ctx.moveTo(lx, BAR_Y - 3);
-                ctx.lineTo(lx, BAR_Y + BAR_H + 3);
+                ctx.moveTo(lx, BAR_Y);
+                ctx.lineTo(lx, BAR_Y + BAR_H);
                 ctx.stroke();
             });
         }
 
-        // Onset bar (overlaid on sleep bar)
-        if (sleep && data.onsetType === 'fixed') {
+        // Onset bar — as soon as bedtime and onset are known; fully opaque to conceal sleep bar beneath
+        if (bedtimeMins !== null && data.onsetType === 'fixed') {
             const onsetDur = (data.onsetH || 0) * 60 + (data.onsetM || 0);
             if (onsetDur > 0) {
-                ctx.globalAlpha = 0.88;
                 ctx.fillStyle = this._ONSET_COLOR;
                 days.forEach((_, i) => {
                     const colX = PL + i * dayW;
-                    const bx = colX + (sleep.from / 1440) * dayW;
+                    const bx = colX + (bedtimeMins / 1440) * dayW;
                     const bw = Math.max(2, (onsetDur / 1440) * dayW);
                     ctx.fillRect(bx, BAR_Y, bw, BAR_H);
                 });
-                ctx.globalAlpha = 1;
             }
         }
 
-        // RAG sleep-need threshold lines (at bedtime + each duration)
-        if (sleep && data.sleepBareH !== undefined) {
-            const thresholds = [
-                { dur: (data.sleepBareH || 0) * 60 + (data.sleepBareM || 0), color: '#ef4444' },
-                { dur: (data.sleepOkH   || 0) * 60 + (data.sleepOkM   || 0), color: '#f59e0b' },
-                { dur: (data.sleepGoodH || 0) * 60 + (data.sleepGoodM || 0), color: '#22c55e' },
+        // RAG sleep-need bands — thin horizontal bands stacked ABOVE the sleep bar
+        // Order bottom-to-top: red (bare), amber (ok), green (good) — "red lowest"
+        if (bedtimeMins !== null && data.sleepNeedsSet) {
+            const ragBands = [
+                { dur: (data.sleepGoodH || 0) * 60 + (data.sleepGoodM || 0), color: '#22c55ecc', row: 0 }, // green, topmost
+                { dur: (data.sleepOkH   || 0) * 60 + (data.sleepOkM   || 0), color: '#f59e0bcc', row: 1 }, // amber
+                { dur: (data.sleepBareH || 0) * 60 + (data.sleepBareM || 0), color: '#ef4444cc', row: 2 }, // red, just above bar
             ];
-            ctx.lineWidth = 1.5;
-            thresholds.forEach(({ dur, color }) => {
+            ragBands.forEach(({ dur, color, row }) => {
                 if (dur <= 0) return;
-                const wakePos = (sleep.from + dur) % 1440;
-                ctx.strokeStyle = color + 'bb';
+                // row 0 = topmost (BAR_Y - 3*RAG_H), row 2 = closest to bar (BAR_Y - RAG_H)
+                const bandY = BAR_Y - RAG_H * (3 - row);
+                ctx.fillStyle = color;
                 days.forEach((_, i) => {
                     const colX = PL + i * dayW;
-                    const lx = Math.round(colX + (wakePos / 1440) * dayW) + 0.5;
-                    ctx.beginPath();
-                    ctx.moveTo(lx, BAR_Y);
-                    ctx.lineTo(lx, BAR_Y + BAR_H);
-                    ctx.stroke();
+                    const fromX = colX + (bedtimeMins / 1440) * dayW;
+                    const endMins = bedtimeMins + dur;
+                    if (endMins <= 1440) {
+                        ctx.fillRect(fromX, bandY, Math.max(2, (dur / 1440) * dayW), RAG_H);
+                    } else {
+                        // evening part (to midnight)
+                        ctx.fillRect(fromX, bandY, Math.max(1, ((1440 - bedtimeMins) / 1440) * dayW), RAG_H);
+                        // morning part (from midnight)
+                        ctx.fillRect(colX, bandY, Math.max(1, ((endMins % 1440) / 1440) * dayW), RAG_H);
+                    }
                 });
             });
         }
+    },
+
+    _buildBedtime(data) {
+        if (!data.bedtimeType || data.bedtimeType === 'variable') return null;
+        if (data.bedtimeType === 'fixed') return Utils.timeToMins(data.bedtime);
+        if (data.bedtimeType === 'after-shift') {
+            const end = Utils.timeToMins(data.shiftHourPatterns[0]?.to || '17:00');
+            return (end + (data.bedtimeOffsetH || 0) * 60 + (data.bedtimeOffsetM || 0)) % 1440;
+        }
+        return null;
     },
 
     _buildDays(data) {

@@ -31,6 +31,7 @@ const Wizard = {
             commuteToWorkH: 0,   commuteToWorkM: 30,
             commuteFromWorkH: 0, commuteFromWorkM: 30,
             days: 14,
+            sleepNeedsSet: false,
         };
     },
 
@@ -239,6 +240,7 @@ const Wizard = {
             },
             save(val, data) {
                 Object.assign(data, { sleepBareH: val.bareH, sleepBareM: val.bareM, sleepOkH: val.okH, sleepOkM: val.okM, sleepGoodH: val.goodH, sleepGoodM: val.goodM });
+                data.sleepNeedsSet = true;
             },
         },
 
@@ -321,7 +323,7 @@ const Wizard = {
                     <div class="wiz-presets">${btns}</div>
                     <label class="wiz-label" style="margin-top:16px; display:block;">Or enter a custom number</label>
                     <input class="wiz-input" id="wiz-days" type="number" value="${data.days}"
-                           min="1" max="365" style="width:100px;"
+                           min="1" max="365" style="width:100px;" inputmode="none"
                            oninput="Wizard._pickDays(parseInt(this.value)||0)"
                            onkeydown="if(event.key==='Enter'){event.preventDefault();Wizard._next();}">
                 `;
@@ -458,7 +460,6 @@ const Wizard = {
             ${hasSub ? `<p class="wiz-subtitle" style="${d(220)}">${step.subtitle}</p>` : ''}
             <div class="wiz-body"  style="${d(hasSub ? 380 : 260)}">${step.render(this._data)}</div>
             <div class="wiz-nav"   style="${d(hasSub ? 560 : 440)}">
-                ${isLast ? `<button class="wiz-btn-pri" onclick="Wizard._next()">Get started &#8594;</button>` : ''}
                 <div style="display:flex; gap:14px;">
                     ${!isLast ? `<button class="wiz-btn-skip" onclick="Wizard._skipStep()">Skip this step</button>` : ''}
                     <button class="wiz-btn-skip" onclick="Wizard._skip()">Skip all</button>
@@ -487,8 +488,7 @@ const Wizard = {
         requestAnimationFrame(() => this._drawPreview());
 
         setTimeout(() => {
-            const first = document.querySelector('#wizard-card input:not([type=number])') ||
-                          document.querySelector('#wizard-card input');
+            const first = document.querySelector('#wizard-card input:not([type=number])');
             if (first) first.focus();
         }, base + 430);
     },
@@ -856,9 +856,8 @@ const Wizard = {
                         <label class="wiz-label">Bedtime</label>
                         <div style="display:flex; gap:4px; align-items:center;">
                             <button class="wiz-val-btn" onclick="Wizard._pickBedtimeH(event)">${bh}</button>
-                            <span class="wiz-unit">h</span>
+                            <span class="wiz-unit">:</span>
                             <button class="wiz-val-btn" onclick="Wizard._pickBedtimeM(event)">${String(bm).padStart(2,'0')}</button>
-                            <span class="wiz-unit">m</span>
                         </div>
                     </div>
                 </div>
@@ -976,9 +975,8 @@ const Wizard = {
                         <label class="wiz-label">Wake time</label>
                         <div style="display:flex; gap:4px; align-items:center;">
                             <button class="wiz-val-btn" onclick="Wizard._pickWakeTimeH(event)">${wh}</button>
-                            <span class="wiz-unit">h</span>
+                            <span class="wiz-unit">:</span>
                             <button class="wiz-val-btn" onclick="Wizard._pickWakeTimeM(event)">${String(wm).padStart(2,'0')}</button>
-                            <span class="wiz-unit">m</span>
                         </div>
                     </div>
                 </div>

@@ -24,7 +24,7 @@
 </head>
 <body>
 
-<div id="app-toolbar" style="position:fixed; top:50px; right:12px; z-index:1500; display:flex; gap:4px; align-items:center;">
+<div id="app-toolbar" style="position:fixed; top:15px; right:12px; z-index:1500; display:flex; gap:4px; align-items:center;">
     <label class="intro-reload-label" style="margin-right:6px;">Show intro on reload <input type="checkbox" id="intro-on-reload"></label>
     <button class="btn-tool" onclick="History.undo()" title="Undo (Ctrl+Z)" style="font-size:0.75rem; padding:3px 8px;">↩</button>
     <button class="btn-tool" onclick="History.redo()" title="Redo (Ctrl+Y)" style="font-size:0.75rem; padding:3px 8px;">↪</button>
@@ -40,7 +40,6 @@
                readonly autocomplete="off" inputmode="none" style="cursor:pointer;" onclick="UI.openNameModal()">
     </div>
     <div class="tab-bar">
-        <button id="tab-setup-btn" onclick="Wizard.showFromLast()" title="Return to setup">&#8592;</button>
         <button class="tab-btn" data-tab="activities" onclick="UI.switchTab('activities')">Activities</button>
         <button class="tab-btn active" data-tab="analytics" onclick="UI.switchTab('analytics')">Analytics</button>
         <button class="tab-btn" data-tab="graph" onclick="UI.switchTab('graph')">Graph</button>
@@ -59,7 +58,7 @@
                     <button class="btn-tool" onclick="Actions.add('Sleep', '#818cf8', 'Sleep')">🌙 Sleep</button>
                     <button class="btn-tool" onclick="Actions.add('Work shift', '#fbbf24', 'Work')">💼 Work</button>
                     <div style="position:relative;">
-                        <button class="btn-tool" onclick="UI.toggleOtherMenu(event)">＋ Other ▾</button>
+                        <button class="btn-tool" onclick="UI.toggleOtherMenu(event)">＋ Other</button>
                         <div class="preset-menu" id="other-menu">
                             <button class="preset-btn" onclick="Actions.add('Commute','#f97316','Commute'); UI.closeOtherMenu()">🚌 Commute</button>
                             <button class="preset-btn" onclick="Actions.add('Exercise','#22d3ee','Exercise'); UI.closeOtherMenu()">🏋️ Exercise</button>
@@ -107,10 +106,12 @@
                     <div id="days-mount"></div>
                     <span style="font-size:0.8rem; color:#94a3b8;">days</span>
                 </div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:0.8rem">🔍 Zoom level</span>
-                    <input type="number" id="zoom-ctrl" value="1.0" step="0.5" min="1.0" style="width: 50px" oninput="ChartEngine.refreshZoom()">
-                    <span id="zoom-hint" style="font-size: 0.65rem; color: #94a3b8"></span>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:0.8rem">🔍</span>
+                    <button class="btn-tool" onclick="ChartEngine.stepZoom(-0.5)" style="padding:3px 7px; font-size:1rem; line-height:1;">−</button>
+                    <input type="number" id="zoom-ctrl" value="9999" step="0.5" min="1.0" inputmode="none" style="width:44px; text-align:center;" oninput="ChartEngine.refreshZoom()">
+                    <button class="btn-tool" onclick="ChartEngine.stepZoom(0.5)" style="padding:3px 7px; font-size:1rem; line-height:1;">+</button>
+                    <span id="zoom-hint" style="font-size:0.65rem; color:#94a3b8"></span>
                 </div>
             </div>
         </div>
@@ -287,5 +288,7 @@
 <script src="js/chart/zoom.js"></script>
 <script src="js/chart/index.js"></script>
 <script src="js/main.js"></script>
+<button id="tab-edge-left"  class="tab-edge-btn" onclick="UI.tabLeft()"  title="Previous">&#9664;</button>
+<button id="tab-edge-right" class="tab-edge-btn" onclick="UI.tabRight()" title="Next">&#9654;</button>
 </body>
 </html>
